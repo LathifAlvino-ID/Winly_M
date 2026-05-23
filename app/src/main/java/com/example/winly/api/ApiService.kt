@@ -143,4 +143,19 @@ interface ApiService {
         @Field("otp")          otp: String,
         @Field("new_password") newPassword: String
     ): Call<LoginResponse>
+
+    // 15. GET REGISTRATIONS - daftar pendaftar per lomba
+    @GET("get_registrations.php")
+    fun getRegistrations(
+        @Query("competition_id") competitionId: Int
+    ): Call<RegistrationResponse>
+
+    // 16. UPDATE STATUS PENDAFTARAN
+    @FormUrlEncoded
+    @POST("update_registration.php")
+    fun updateRegistration(
+        @Field("registration_id") registrationId: Int,
+        @Field("status")          status: String,
+        @Field("catatan")         catatan: String = ""
+    ): Call<LoginResponse>
 }

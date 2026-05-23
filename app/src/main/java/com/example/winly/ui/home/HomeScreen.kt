@@ -105,10 +105,7 @@ fun HomeScreen(
                         activeFilterCount = activeFilterCount
                     )
                 }
-                1 -> Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    Text("Halaman Explore 🚀", color = Color.Gray)
-                }
-                // FIX: Tab Portfolio sekarang tampilkan BookmarkScreen
+                1 -> ExploreScreen(onNavigateToDetail = onNavigateToDetail)
                 2 -> BookmarkScreen(onNavigateToDetail = onNavigateToDetail)
                 3 -> ProfileTab(onLogout = onLogout)
             }
@@ -127,9 +124,7 @@ fun HomeScreen(
                 containerColor = Color.White,
                 dragHandle = { BottomSheetDefaults.DragHandle(color = Color.LightGray) }
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Filter Lomba", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
                         TextButton(onClick = { tempKategori = ""; tempPendidikan = ""; tempTingkat = "" }) {
@@ -356,7 +351,7 @@ fun PenyelenggaraDashboard(onNavigateToCreate: () -> Unit) {
 }
 
 @Composable
-fun PenyelenggaraCompetitionCard(title: String, price: String, tanggalLomba: String, onHapus: () -> Unit = {}) {
+fun PenyelenggaraCompetitionCard(title: String, price: String, tanggalLomba: String, competitionId: Int = 0, onKelola: () -> Unit = {}, onHapus: () -> Unit = {}) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFEEEEEE)), elevation = CardDefaults.cardElevation(2.dp)) {
         Column {
             Box(modifier = Modifier.fillMaxWidth().height(100.dp).background(Color(0xFFF2F2F2)), contentAlignment = Alignment.Center) {
@@ -375,7 +370,7 @@ fun PenyelenggaraCompetitionCard(title: String, price: String, tanggalLomba: Str
             }
             HorizontalDivider(color = Color(0xFFEEEEEE))
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Kelola Lomba →", color = Color(0xFF0061D1), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("Kelola Lomba →", color = Color(0xFF0061D1), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onKelola() })
                 Text("Hapus Lomba", color = Color(0xFFDC2626), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { onHapus() })
             }
         }
@@ -525,6 +520,155 @@ fun RecommendationCard(lomba: CompetitionModel, onClick: () -> Unit = {}) {
                 Spacer(modifier = Modifier.height(8.dp))
                 val biaya = lomba.biayaPendaftaran?.toIntOrNull() ?: 0
                 Text(if (biaya == 0) "GRATIS" else "Rp $biaya", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = if (biaya == 0) Color(0xFF22C55E) else Color.Black)
+            }
+        }
+    }
+}
+
+// ====================================================================
+// EXPLORE SCREEN
+// ====================================================================
+@Composable
+fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
+    val context = LocalContext.current
+
+    val kategoriList = listOf(
+        Triple("Teknologi & IT",        Icons.Default.Computer,         Color(0xFF0061D1)),
+        Triple("Sains & Matematika",    Icons.Default.Science,          Color(0xFF7C3AED)),
+        Triple("Ekonomi & Bisnis",      Icons.Default.TrendingUp,       Color(0xFF059669)),
+        Triple("Karya Tulis & Riset",   Icons.Default.MenuBook,         Color(0xFFD97706)),
+        Triple("Seni & Desain",         Icons.Default.Palette,          Color(0xFFDB2777)),
+        Triple("Soshum & Hukum",        Icons.Default.Gavel,            Color(0xFF0891B2)),
+    )
+
+    var selectedKategori by remember { mutableStateOf<String?>(null) }
+    var listLomba by remember { mutableStateOf<List<CompetitionModel>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedKategori) {
+        if (selectedKategori != null) {
+            isLoading = true
+            RetrofitClient.instance.getCompetitions(kategori = selectedKategori)
+                .enqueue(object : Callback<CompetitionResponse> {
+                    override fun onResponse(call: Call<CompetitionResponse>, response: Response<CompetitionResponse>) {
+                        isLoading = false
+                        listLomba = response.body()?.data ?: emptyList()
+                    }
+                    override fun onFailure(call: Call<CompetitionResponse>, t: Throwable) { isLoading = false }
+                })
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(bottom = 100.dp)
+    ) {
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("JELAJAHI", fontSize = 11.sp, color = Color(0xFF0061D1), fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Text("Explore Lomba", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+            Text("Temukan lomba sesuai bidangmu", fontSize = 13.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+
+        item {
+            Text("Kategori", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+            Spacer(modifier = Modifier.height(12.dp))
+            val rows = kategoriList.chunked(2)
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                rows.forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        row.forEach { (nama, icon, color) ->
+                            val isSelected = selectedKategori == nama
+                            Card(
+                                modifier = Modifier.weight(1f).height(90.dp).clickable {
+                                    selectedKategori = if (isSelected) null else nama
+                                    if (isSelected) listLomba = emptyList()
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = if (isSelected) color else color.copy(alpha = 0.1f)),
+                                elevation = CardDefaults.cardElevation(if (isSelected) 4.dp else 0.dp)
+                            ) {
+                                Column(modifier = Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Center) {
+                                    Icon(icon, null, tint = if (isSelected) Color.White else color, modifier = Modifier.size(24.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(nama, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isSelected) Color.White else color, lineHeight = 14.sp)
+                                }
+                            }
+                        }
+                        if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        if (selectedKategori != null) {
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Lomba $selectedKategori", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                    if (!isLoading) Text("${listLomba.size} lomba", color = Color(0xFF0061D1), fontSize = 12.sp)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            if (isLoading) {
+                item {
+                    Box(Modifier.fillMaxWidth().height(120.dp), Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF0061D1))
+                    }
+                }
+            } else if (listLomba.isEmpty()) {
+                item {
+                    Box(Modifier.fillMaxWidth().height(120.dp), Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.SearchOff, null, tint = Color.LightGray, modifier = Modifier.size(40.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Belum ada lomba di kategori ini", color = Color.Gray, fontSize = 13.sp)
+                        }
+                    }
+                }
+            } else {
+                items(listLomba) { lomba ->
+                    val biaya = lomba.biayaPendaftaran?.toIntOrNull() ?: 0
+                    val warna = kategoriList.find { it.first == lomba.kategori }?.third ?: Color(0xFF0061D1)
+                    val ikon = kategoriList.find { it.first == lomba.kategori }?.second ?: Icons.Default.EmojiEvents
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable { onNavigateToDetail(lomba.id?.toIntOrNull() ?: 0) }.padding(bottom = 12.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(warna.copy(0.1f)), contentAlignment = Alignment.Center) {
+                                Icon(ikon, null, tint = warna, modifier = Modifier.size(28.dp))
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(lomba.judulLomba ?: "", fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(lomba.tingkatLomba ?: "", fontSize = 10.sp, color = Color(0xFF0061D1), fontWeight = FontWeight.Bold)
+                                    Text("•", fontSize = 10.sp, color = Color.Gray)
+                                    Text(hitungSisaHari(lomba.tanggalPelaksanaan), fontSize = 10.sp, color = Color(0xFF0061D1), fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(if (biaya == 0) "GRATIS" else "Rp $biaya", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = if (biaya == 0) Color(0xFF22C55E) else Color.DarkGray)
+                            }
+                            Icon(Icons.Default.ChevronRight, null, tint = Color.LightGray)
+                        }
+                    }
+                }
+            }
+        } else {
+            item {
+                Box(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.TouchApp, null, tint = Color.LightGray, modifier = Modifier.size(40.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Pilih kategori di atas\nuntuk melihat lomba", color = Color.Gray, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    }
+                }
             }
         }
     }

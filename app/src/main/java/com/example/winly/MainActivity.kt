@@ -152,6 +152,23 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
+                        // KELOLA PENDAFTAR
+                        composable(
+                            route = "kelola_pendaftar/{competitionId}/{judulLomba}",
+                            arguments = listOf(
+                                navArgument("competitionId") { type = NavType.IntType },
+                                navArgument("judulLomba") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            val compId = backStackEntry.arguments?.getInt("competitionId") ?: 0
+                            val judul  = java.net.URLDecoder.decode(backStackEntry.arguments?.getString("judulLomba") ?: "", "UTF-8")
+                            KelolaPendaftarScreen(
+                                competitionId = compId,
+                                judulLomba    = judul,
+                                onBack        = { navController.popBackStack() }
+                            )
+                        }
+
                         // 9. CREATE COMPETITION
                         composable("create_competition") {
                             CreateCompetitionScreen(

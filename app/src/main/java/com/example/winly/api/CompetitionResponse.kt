@@ -70,4 +70,26 @@ data class BookmarkResponse(
     @SerializedName("is_bookmarked") val isBookmarked: Boolean? = null,
     @SerializedName("total")         val total: Int? = 0,
     @SerializedName("data")          val data: List<CompetitionModel>? = null
+
+
+)
+
+// Model Registrasi
+data class RegistrationModel(
+    @SerializedName("id")                  val id: String? = "",
+    @SerializedName("peserta_id")          val pesertaId: String? = "",
+    @SerializedName("competition_id")      val competitionId: String? = "",
+    @SerializedName("status_pendaftaran")  val statusPendaftaran: String? = "pending",
+    @SerializedName("nama_peserta")        val namaPeserta: String? = "",
+    @SerializedName("email_peserta")       val emailPeserta: String? = "",
+    @SerializedName("instansi_peserta")    val instansiPeserta: String? = "",
+    @SerializedName("catatan")             val catatan: String? = "",
+    @SerializedName("created_at")          val createdAt: String? = ""
+)
+
+data class RegistrationResponse(
+    @SerializedName("status")  val status: String? = null,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("total")   val total: Int? = 0,
+    @SerializedName("data")    val data: List<RegistrationModel>? = null
 )
