@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.winly.DeadlineScheduler
 import com.example.winly.api.CompetitionDetailModel
 import com.example.winly.api.CompetitionDetailResponse
 import com.example.winly.api.BookmarkResponse
@@ -89,6 +90,18 @@ fun DetailLombaScreen(
                                                 isBookmarked = body.isBookmarked ?: false
                                                 val msg = if (isBookmarked) "Lomba disimpan ke koleksi!" else "Bookmark dihapus"
                                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+
+                                                // Jadwalkan/batalkan notifikasi
+                                                if (isBookmarked) {
+                                                    DeadlineScheduler.scheduleDeadlineNotification(
+                                                        context         = context,
+                                                        competitionId   = competitionId,
+                                                        judulLomba      = lomba?.judulLomba ?: "",
+                                                        tanggalDeadline = lomba?.tanggalTutupDaftar ?: lomba?.tanggalPelaksanaan
+                                                    )
+                                                } else {
+                                                    DeadlineScheduler.cancelDeadlineNotification(context, competitionId)
+                                                }
                                             }
                                         }
                                         override fun onFailure(call: Call<BookmarkResponse>, t: Throwable) {

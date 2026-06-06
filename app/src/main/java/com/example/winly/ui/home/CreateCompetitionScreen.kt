@@ -176,16 +176,19 @@ fun CreateCompetitionScreen(onBack: () -> Unit, onUploadSuccess: () -> Unit) {
             linkPanduan       = linkJuknis,
             tanggal           = tanggal,
             tanggalTutup      = tanggalTutup,
-            biaya             = hargaDaftar.toIntOrNull() ?: 0
+            biaya             = hargaDaftar.toIntOrNull() ?: 0,
+            posterUrl         = posterUrl // <--- INI PINTU POSTERNYA SUDAH SAYA TAMBAHKAN
         ).enqueue(object : Callback<LoginResponse> {
             override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                 isLoading = false
-                if (response.isSuccessful && response.body()?.status == "success") {
+                val body = response.body()
+                // Tampilkan pesan detail dari server
+                Toast.makeText(context, "Server: ${body?.message}", Toast.LENGTH_LONG).show()
+                if (response.isSuccessful && body?.status == "success") {
                     if (sisaKuota > 0) {
                         sessionManager.updateSisaKuota(sisaKuota - 1)
                         sisaKuota--
                     }
-                    Toast.makeText(context, "Lomba berhasil diterbitkan! 🎉", Toast.LENGTH_SHORT).show()
                     showQrisDialog = false
                     onUploadSuccess()
                 } else {
@@ -316,7 +319,7 @@ fun CreateCompetitionScreen(onBack: () -> Unit, onUploadSuccess: () -> Unit) {
                 Text("Tingkat Pendidikan *", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
                 Spacer(modifier = Modifier.height(8.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("SD", "SMP/Sederajat", "SMA/SMK", "Mahasiswa", "Umum").forEach { pend ->
+                    listOf("SD", "SMP", "SMA/SMK", "Mahasiswa", "Umum").forEach { pend ->
                         SelectableChip(text = pend, isSelected = tingkatPendidikan == pend) { tingkatPendidikan = pend }
                     }
                 }

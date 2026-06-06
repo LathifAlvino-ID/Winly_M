@@ -18,11 +18,16 @@ import com.example.winly.ui.auth.*
 import com.example.winly.ui.home.CreateCompetitionScreen
 import com.example.winly.ui.home.DetailLombaScreen
 import com.example.winly.ui.home.HomeScreen
+import com.example.winly.ui.home.KelolaPendaftarScreen
+import com.example.winly.ui.home.BookmarkScreen
+import com.example.winly.NotificationHelper
 import com.example.winly.ui.theme.WinlyTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Inisialisasi notification channel
+        NotificationHelper.createNotificationChannel(this)
         enableEdgeToEdge()
 
         val sessionManager = SessionManager(this)
@@ -78,6 +83,13 @@ class MainActivity : ComponentActivity() {
                                 userRole = role,
                                 onNavigateToCreate = { navController.navigate("create_competition") },
                                 onNavigateToDetail = { id -> navController.navigate("detail_lomba/$id") },
+
+                                // TAMBAHKAN BAGIAN INI DI SINI
+                                onNavigateToKelola = { id, judul ->
+                                    val encodedJudul = java.net.URLEncoder.encode(judul, "UTF-8")
+                                    navController.navigate("kelola_pendaftar/$id/$encodedJudul")
+                                },
+
                                 onLogout = {
                                     sessionManager.clearSession()
                                     navController.navigate("greeting") {

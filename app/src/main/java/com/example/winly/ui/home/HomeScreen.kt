@@ -67,6 +67,7 @@ fun HomeScreen(
     userRole: String = "peserta",
     onNavigateToCreate: () -> Unit = {},
     onNavigateToDetail: (Int) -> Unit = {},
+    onNavigateToKelola: (Int, String) -> Unit = { _, _ -> },
     onLogout: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -76,7 +77,6 @@ fun HomeScreen(
     var selectedKategori by remember { mutableStateOf("") }
     var selectedPendidikan by remember { mutableStateOf("") }
     var selectedTingkat by remember { mutableStateOf("") }
-
     var tempKategori by remember { mutableStateOf("") }
     var tempPendidikan by remember { mutableStateOf("") }
     var tempTingkat by remember { mutableStateOf("") }
@@ -87,7 +87,10 @@ fun HomeScreen(
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             when (selectedTab) {
                 0 -> if (userRole == "penyelenggara") {
-                    PenyelenggaraDashboard(onNavigateToCreate = onNavigateToCreate)
+                    PenyelenggaraDashboard(
+                        onNavigateToCreate = onNavigateToCreate,
+                        onNavigateToKelola = onNavigateToKelola
+                    )
                 } else {
                     PesertaDashboard(
                         onOpenFilter = {
@@ -109,7 +112,6 @@ fun HomeScreen(
                 2 -> BookmarkScreen(onNavigateToDetail = onNavigateToDetail)
                 3 -> ProfileTab(onLogout = onLogout)
             }
-
             CustomBottomNav(
                 selectedTab = selectedTab,
                 onTabSelected = { selectedTab = it },
@@ -165,12 +167,7 @@ fun FilterSection(title: String, options: List<String>, selected: String, onSele
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             options.forEach { option ->
                 val isSelected = selected == option
-                Surface(
-                    modifier = Modifier.clickable { onSelect(option) },
-                    shape = RoundedCornerShape(50.dp),
-                    color = if (isSelected) Color(0xFF0061D1) else Color(0xFFF2F2F2),
-                    border = if (isSelected) null else BorderStroke(1.dp, Color(0xFFE0E0E0))
-                ) {
+                Surface(modifier = Modifier.clickable { onSelect(option) }, shape = RoundedCornerShape(50.dp), color = if (isSelected) Color(0xFF0061D1) else Color(0xFFF2F2F2), border = if (isSelected) null else BorderStroke(1.dp, Color(0xFFE0E0E0))) {
                     Text(option, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = if (isSelected) Color.White else Color.DarkGray)
                 }
             }
@@ -246,7 +243,10 @@ fun ProfileInfoRow(icon: ImageVector, label: String, value: String) {
 }
 
 @Composable
-fun PenyelenggaraDashboard(onNavigateToCreate: () -> Unit) {
+fun PenyelenggaraDashboard(
+    onNavigateToCreate: () -> Unit,
+    onNavigateToKelola: (Int, String) -> Unit = { _, _ -> }
+) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     val userId = sessionManager.getUserId()
@@ -262,12 +262,18 @@ fun PenyelenggaraDashboard(onNavigateToCreate: () -> Unit) {
         if (userId > 0) {
             RetrofitClient.instance.getUserInfo(userId).enqueue(object : Callback<UserResponse> {
                 override fun onResponse(call: Call<UserResponse>, response: Response<UserResponse>) {
-                    if (response.body()?.status == "success") { sisaKuota = response.body()?.data?.sisaKuota ?: 0; sessionManager.updateSisaKuota(sisaKuota) }
+                    if (response.body()?.status == "success") {
+                        sisaKuota = response.body()?.data?.sisaKuota ?: 0
+                        sessionManager.updateSisaKuota(sisaKuota)
+                    }
                 }
                 override fun onFailure(call: Call<UserResponse>, t: Throwable) {}
             })
             RetrofitClient.instance.getMyCompetitions(userId).enqueue(object : Callback<CompetitionResponse> {
-                override fun onResponse(call: Call<CompetitionResponse>, response: Response<CompetitionResponse>) { isLoading = false; myLombaList = response.body()?.data ?: emptyList() }
+                override fun onResponse(call: Call<CompetitionResponse>, response: Response<CompetitionResponse>) {
+                    isLoading = false
+                    myLombaList = response.body()?.data ?: emptyList()
+                }
                 override fun onFailure(call: Call<CompetitionResponse>, t: Throwable) { isLoading = false }
             })
         }
@@ -282,12 +288,16 @@ fun PenyelenggaraDashboard(onNavigateToCreate: () -> Unit) {
                 Button(
                     onClick = {
                         showDeleteDialog = false
-                        RetrofitClient.instance.deleteCompetition(selectedLombaId!!, userId).enqueue(object : Callback<LoginResponse> {
-                            override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
-                                if (response.body()?.status == "success") { myLombaList = myLombaList.filter { it.id?.toIntOrNull() != selectedLombaId }; Toast.makeText(context, "Lomba berhasil dihapus!", Toast.LENGTH_SHORT).show() }
-                            }
-                            override fun onFailure(call: Call<LoginResponse>, t: Throwable) {}
-                        })
+                        RetrofitClient.instance.deleteCompetition(selectedLombaId!!, userId)
+                            .enqueue(object : Callback<LoginResponse> {
+                                override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
+                                    if (response.body()?.status == "success") {
+                                        myLombaList = myLombaList.filter { it.id?.toIntOrNull() != selectedLombaId }
+                                        Toast.makeText(context, "Lomba berhasil dihapus!", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                                override fun onFailure(call: Call<LoginResponse>, t: Throwable) {}
+                            })
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
                 ) { Text("Hapus") }
@@ -342,7 +352,13 @@ fun PenyelenggaraDashboard(onNavigateToCreate: () -> Unit) {
         } else {
             items(myLombaList) { lomba ->
                 val biaya = lomba.biayaPendaftaran?.toIntOrNull() ?: 0
-                PenyelenggaraCompetitionCard(title = lomba.judulLomba ?: "Tanpa Judul", price = if (biaya == 0) "FREE" else "Rp $biaya", tanggalLomba = lomba.tanggalPelaksanaan ?: "", onHapus = { selectedLombaId = lomba.id?.toIntOrNull(); showDeleteDialog = true })
+                PenyelenggaraCompetitionCard(
+                    title = lomba.judulLomba ?: "Tanpa Judul",
+                    price = if (biaya == 0) "FREE" else "Rp $biaya",
+                    tanggalLomba = lomba.tanggalPelaksanaan ?: "",
+                    onKelola = { onNavigateToKelola(lomba.id?.toIntOrNull() ?: 0, lomba.judulLomba ?: "") },
+                    onHapus = { selectedLombaId = lomba.id?.toIntOrNull(); showDeleteDialog = true }
+                )
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
@@ -351,7 +367,13 @@ fun PenyelenggaraDashboard(onNavigateToCreate: () -> Unit) {
 }
 
 @Composable
-fun PenyelenggaraCompetitionCard(title: String, price: String, tanggalLomba: String, competitionId: Int = 0, onKelola: () -> Unit = {}, onHapus: () -> Unit = {}) {
+fun PenyelenggaraCompetitionCard(
+    title: String,
+    price: String,
+    tanggalLomba: String,
+    onKelola: () -> Unit = {},
+    onHapus: () -> Unit = {}
+) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFEEEEEE)), elevation = CardDefaults.cardElevation(2.dp)) {
         Column {
             Box(modifier = Modifier.fillMaxWidth().height(100.dp).background(Color(0xFFF2F2F2)), contentAlignment = Alignment.Center) {
@@ -404,7 +426,10 @@ fun PesertaDashboard(
             tingkatPendidikan = if (activePendidikan.isNotEmpty()) activePendidikan else null,
             tingkatLomba      = if (activeTingkat.isNotEmpty()) activeTingkat else null
         ).enqueue(object : Callback<CompetitionResponse> {
-            override fun onResponse(call: Call<CompetitionResponse>, response: Response<CompetitionResponse>) { isLoading = false; listLomba = response.body()?.data ?: emptyList() }
+            override fun onResponse(call: Call<CompetitionResponse>, response: Response<CompetitionResponse>) {
+                isLoading = false
+                listLomba = response.body()?.data ?: emptyList()
+            }
             override fun onFailure(call: Call<CompetitionResponse>, t: Throwable) { isLoading = false }
         })
     }
@@ -525,20 +550,15 @@ fun RecommendationCard(lomba: CompetitionModel, onClick: () -> Unit = {}) {
     }
 }
 
-// ====================================================================
-// EXPLORE SCREEN
-// ====================================================================
 @Composable
 fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
-    val context = LocalContext.current
-
     val kategoriList = listOf(
-        Triple("Teknologi & IT",        Icons.Default.Computer,         Color(0xFF0061D1)),
-        Triple("Sains & Matematika",    Icons.Default.Science,          Color(0xFF7C3AED)),
-        Triple("Ekonomi & Bisnis",      Icons.Default.TrendingUp,       Color(0xFF059669)),
-        Triple("Karya Tulis & Riset",   Icons.Default.MenuBook,         Color(0xFFD97706)),
-        Triple("Seni & Desain",         Icons.Default.Palette,          Color(0xFFDB2777)),
-        Triple("Soshum & Hukum",        Icons.Default.Gavel,            Color(0xFF0891B2)),
+        Triple("Teknologi & IT",      Icons.Default.Computer,   Color(0xFF0061D1)),
+        Triple("Sains & Matematika",  Icons.Default.Science,    Color(0xFF7C3AED)),
+        Triple("Ekonomi & Bisnis",    Icons.Default.TrendingUp, Color(0xFF059669)),
+        Triple("Karya Tulis & Riset", Icons.Default.MenuBook,   Color(0xFFD97706)),
+        Triple("Seni & Desain",       Icons.Default.Palette,    Color(0xFFDB2777)),
+        Triple("Soshum & Hukum",      Icons.Default.Gavel,      Color(0xFF0891B2)),
     )
 
     var selectedKategori by remember { mutableStateOf<String?>(null) }
@@ -559,10 +579,7 @@ fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
         }
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(bottom = 100.dp)
-    ) {
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(bottom = 100.dp)) {
         item {
             Spacer(modifier = Modifier.height(16.dp))
             Text("JELAJAHI", fontSize = 11.sp, color = Color(0xFF0061D1), fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
@@ -570,7 +587,6 @@ fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
             Text("Temukan lomba sesuai bidangmu", fontSize = 13.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(20.dp))
         }
-
         item {
             Text("Kategori", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
             Spacer(modifier = Modifier.height(12.dp))
@@ -581,10 +597,7 @@ fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
                         row.forEach { (nama, icon, color) ->
                             val isSelected = selectedKategori == nama
                             Card(
-                                modifier = Modifier.weight(1f).height(90.dp).clickable {
-                                    selectedKategori = if (isSelected) null else nama
-                                    if (isSelected) listLomba = emptyList()
-                                },
+                                modifier = Modifier.weight(1f).height(90.dp).clickable { selectedKategori = if (isSelected) null else nama; if (isSelected) listLomba = emptyList() },
                                 shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(containerColor = if (isSelected) color else color.copy(alpha = 0.1f)),
                                 elevation = CardDefaults.cardElevation(if (isSelected) 4.dp else 0.dp)
@@ -602,7 +615,6 @@ fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
-
         if (selectedKategori != null) {
             item {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -611,13 +623,8 @@ fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
-
             if (isLoading) {
-                item {
-                    Box(Modifier.fillMaxWidth().height(120.dp), Alignment.Center) {
-                        CircularProgressIndicator(color = Color(0xFF0061D1))
-                    }
-                }
+                item { Box(Modifier.fillMaxWidth().height(120.dp), Alignment.Center) { CircularProgressIndicator(color = Color(0xFF0061D1)) } }
             } else if (listLomba.isEmpty()) {
                 item {
                     Box(Modifier.fillMaxWidth().height(120.dp), Alignment.Center) {
@@ -633,12 +640,7 @@ fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
                     val biaya = lomba.biayaPendaftaran?.toIntOrNull() ?: 0
                     val warna = kategoriList.find { it.first == lomba.kategori }?.third ?: Color(0xFF0061D1)
                     val ikon = kategoriList.find { it.first == lomba.kategori }?.second ?: Icons.Default.EmojiEvents
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { onNavigateToDetail(lomba.id?.toIntOrNull() ?: 0) }.padding(bottom = 12.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(2.dp)
-                    ) {
+                    Card(modifier = Modifier.fillMaxWidth().clickable { onNavigateToDetail(lomba.id?.toIntOrNull() ?: 0) }.padding(bottom = 12.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(2.dp)) {
                         Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(warna.copy(0.1f)), contentAlignment = Alignment.Center) {
                                 Icon(ikon, null, tint = warna, modifier = Modifier.size(28.dp))

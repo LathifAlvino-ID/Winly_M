@@ -54,7 +54,7 @@ interface ApiService {
         @Field("code") code: String
     ): Call<LoginResponse>
 
-    // 4. AMBIL SEMUA LOMBA (dengan search & filter opsional)
+    // 4. AMBIL SEMUA LOMBA
     @GET("get_competitions.php")
     fun getCompetitions(
         @Query("search") search: String? = null,
@@ -63,7 +63,7 @@ interface ApiService {
         @Query("tingkat_lomba") tingkatLomba: String? = null
     ): Call<CompetitionResponse>
 
-    // 5. DETAIL SATU LOMBA
+    // 5. DETAIL SATU LOMBA (INI YANG SUDAH DIPERBAIKI)
     @GET("get_competition_detail.php")
     fun getCompetitionDetail(
         @Query("id") id: Int
@@ -75,7 +75,7 @@ interface ApiService {
         @Query("penyelenggara_id") id: Int
     ): Call<CompetitionResponse>
 
-    // 7. BUAT LOMBA BARU
+    // 7. BUAT LOMBA BARU (SUDAH ADA POSTER URL)
     @FormUrlEncoded
     @POST("create_competition.php")
     fun createCompetition(
@@ -89,7 +89,8 @@ interface ApiService {
         @Field("link_panduan")       linkPanduan: String,
         @Field("tanggal_pelaksanaan") tanggal: String,
         @Field("tanggal_tutup_daftar") tanggalTutup: String,
-        @Field("biaya_pendaftaran")  biaya: Int
+        @Field("biaya_pendaftaran")  biaya: Int,
+        @Field("poster_url")         posterUrl: String = "" // TAMBAHKAN INI
     ): Call<LoginResponse>
 
     // 8. HAPUS LOMBA
@@ -100,19 +101,19 @@ interface ApiService {
         @Field("penyelenggara_id") penyelenggaraId: Int
     ): Call<LoginResponse>
 
-    // 9. INFO USER (profil + sisa kuota)
+    // 9. INFO USER
     @GET("get_user_info.php")
     fun getUserInfo(
         @Query("user_id") userId: Int
     ): Call<UserResponse>
 
-    // 10. BOOKMARK - GET (ambil semua bookmark user)
+    // 10. BOOKMARK - GET
     @GET("bookmark.php")
     fun getBookmarks(
         @Query("user_id") userId: Int
     ): Call<BookmarkResponse>
 
-    // 11. BOOKMARK - POST (toggle simpan/hapus)
+    // 11. BOOKMARK - POST
     @FormUrlEncoded
     @POST("bookmark.php")
     fun toggleBookmark(
@@ -144,11 +145,11 @@ interface ApiService {
         @Field("new_password") newPassword: String
     ): Call<LoginResponse>
 
-    // 15. GET REGISTRATIONS - daftar pendaftar per lomba
+    // 15. GET REGISTRATIONS
     @GET("get_registrations.php")
     fun getRegistrations(
         @Query("competition_id") competitionId: Int
-    ): Call<RegistrationResponse>
+    ): Call<RegistrationResponse> // Pastikan file RegistrationResponse.kt sudah ada atau biarkan error kuning sementara jika belum dibuat
 
     // 16. UPDATE STATUS PENDAFTARAN
     @FormUrlEncoded

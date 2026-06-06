@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.winly.DeadlineScheduler
 import com.example.winly.api.BookmarkResponse
 import com.example.winly.api.CompetitionModel
 import com.example.winly.api.LoginResponse
@@ -74,6 +75,10 @@ fun BookmarkScreen(onNavigateToDetail: (Int) -> Unit = {}) {
                             .enqueue(object : Callback<BookmarkResponse> {
                                 override fun onResponse(call: Call<BookmarkResponse>, response: Response<BookmarkResponse>) {
                                     if (response.body()?.status == "success") {
+                                        // Batalkan notifikasi deadline saat bookmark dihapus
+                                        DeadlineScheduler.cancelDeadlineNotification(
+                                            context, selectedId!!
+                                        )
                                         bookmarkList = bookmarkList.filter { it.id?.toIntOrNull() != selectedId }
                                         Toast.makeText(context, "Dihapus dari koleksi", Toast.LENGTH_SHORT).show()
                                     }
