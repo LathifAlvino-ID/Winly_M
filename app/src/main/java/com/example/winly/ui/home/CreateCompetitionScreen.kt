@@ -1,10 +1,10 @@
 package com.example.winly.ui.home
 
 import android.app.DatePickerDialog
-import android.net.Uri
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,201 +23,169 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.example.winly.api.LoginResponse
 import com.example.winly.api.RetrofitClient
-import com.example.winly.data.SessionManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
-import org.json.JSONObject
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.io.File
-import java.io.FileOutputStream
 import java.util.*
-
-// ====================================================================
-// CLOUDINARY CONFIG
-// ====================================================================
-private const val CLOUDINARY_CLOUD_NAME = "dt1sgatsn"
-private const val CLOUDINARY_UPLOAD_PRESET = "ml_default"
-private const val CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/$CLOUDINARY_CLOUD_NAME/image/upload"
-
-// ====================================================================
-// FUNGSI UPLOAD KE CLOUDINARY
-// ====================================================================
-suspend fun uploadToCloudinary(context: android.content.Context, imageUri: Uri): String? {
-    return withContext(Dispatchers.IO) {
-        try {
-            // Convert URI ke File
-            val inputStream = context.contentResolver.openInputStream(imageUri) ?: return@withContext null
-            val tempFile = File.createTempFile("poster_", ".jpg", context.cacheDir)
-            val outputStream = FileOutputStream(tempFile)
-            inputStream.copyTo(outputStream)
-            inputStream.close()
-            outputStream.close()
-
-            // Upload ke Cloudinary
-            val client = OkHttpClient()
-            val requestBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("file", tempFile.name, tempFile.asRequestBody("image/*".toMediaTypeOrNull()))
-                .addFormDataPart("upload_preset", CLOUDINARY_UPLOAD_PRESET)
-                .addFormDataPart("folder", "winly_posters")
-                .build()
-
-            val request = Request.Builder()
-                .url(CLOUDINARY_URL)
-                .post(requestBody)
-                .build()
-
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string()
-
-            if (response.isSuccessful && responseBody != null) {
-                val json = JSONObject(responseBody)
-                json.getString("secure_url") // Return URL gambar
-            } else null
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun CreateCompetitionScreen(onBack: () -> Unit, onUploadSuccess: () -> Unit) {
     val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
+    var isLoading by remember { mutableStateOf(false) }
 
-    // Ambil userId dari session - FIX hardcode!
-    val userId = sessionManager.getUserId()
-    var sisaKuotaGratis by remember { mutableIntStateOf(5) } // Default 5, ambil dari backend nanti
-    var userRole by remember { mutableStateOf("") } // 'peserta' atau 'penyelenggara'
+    // ===== STATE: AMBIL DATA USER DARI SHARED PREFERENCES =====
     var userId by remember { mutableIntStateOf(0) }
+    var sisaKuotaGratis by remember { mutableIntStateOf(5) }
+    var userRole by remember { mutableStateOf("peserta") }
 
-// Ambil data user saat pertama kali screen dibuka
     LaunchedEffect(Unit) {
         val sharedPref = context.getSharedPreferences("user_session", Context.MODE_PRIVATE)
         userId = sharedPref.getInt("user_id", 0)
-        userRole = sharedPref.getString("role", "") ?: ""
         sisaKuotaGratis = sharedPref.getInt("sisa_kuota", 5)
+        userRole = sharedPref.getString("role", "peserta") ?: "peserta"
     }
 
-    var isLoading by remember { mutableStateOf(false) }
-    var isUploadingImage by remember { mutableStateOf(false) }
-    var showQrisDialog by remember { mutableStateOf(false) }
-
-    // State poster
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var posterUrl by remember { mutableStateOf("") }
-
-    // State form
+    // ===== STATE: FORM INPUTS =====
     var judul by remember { mutableStateOf("") }
     var kategori by remember { mutableStateOf("Teknologi & IT") }
-    var tingkatPendidikan by remember { mutableStateOf("SMA/SMK") }
-    var wilayah by remember { mutableStateOf("Nasional") }
+    var tingkatPendidikan by remember { mutableStateOf("SMA / SMK") }
+    var wilayah by remember { mutableStateOf("Umum") }
     var tanggal by remember { mutableStateOf("") }
-    var tanggalTutup by remember { mutableStateOf("") }
-    var hargaDaftar by remember { mutableStateOf("") }
-    var linkPendaftaran by remember { mutableStateOf("") }
+    var deskripsi by remember { mutableStateOf("") }
     var linkJuknis by remember { mutableStateOf("") }
+    var hargaDaftar by remember { mutableStateOf("") }
+
+    // ===== STATE: UI INTERACTION =====
     var isWilayahDropdownExpanded by remember { mutableStateOf(false) }
+    var showQrisDialog by remember { mutableStateOf(false) }
 
     val calendar = Calendar.getInstance()
-
-    val datePicker = DatePickerDialog(context,
-        { _, y, m, d -> tanggal = "$y-${m + 1}-$d" },
-        calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)
+    val datePickerDialog = DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            tanggal = String.format("%04d-%02d-%02d", year, month + 1, dayOfMonth)
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    val dateTutupPicker = DatePickerDialog(context,
-        { _, y, m, d -> tanggalTutup = "$y-${m + 1}-$d" },
-        calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)
-    )
-
-    // Launcher pilih gambar dari galeri
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        uri?.let {
-            selectedImageUri = it
-            // Upload ke Cloudinary otomatis setelah pilih gambar
-            isUploadingImage = true
-            CoroutineScope(Dispatchers.Main).launch {
-                val url = uploadToCloudinary(context, it)
-                isUploadingImage = false
-                if (url != null) {
-                    posterUrl = url
-                    Toast.makeText(context, "Poster berhasil diupload! ✅", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(context, "Gagal upload poster, coba lagi", Toast.LENGTH_SHORT).show()
-                    selectedImageUri = null
-                }
-            }
+    // ====================================================================
+    // FUNGSI HELPER: Cek apakah perlu bayar
+    // ====================================================================
+    fun dapatkaBiayaPembayaran(): Int {
+        return if (wilayah in listOf("Provinsi", "Nasional", "Internasional")) {
+            50000 // Premium level: 50rb
+        } else {
+            0 // Gratis atau sudah bayar kuota
         }
     }
 
-    fun uploadLomba() {
+    fun dapatkanyaNeedsBayar(): Boolean {
+        val isPremiumLevel = wilayah in listOf("Provinsi", "Nasional", "Internasional")
+        val isGratisHabis = (wilayah in listOf("Umum", "Kota")) && sisaKuotaGratis <= 0
+        return isPremiumLevel || isGratisHabis
+    }
+
+    // ====================================================================
+    // FUNGSI UPLOAD KE DATABASE
+    // ====================================================================
+    fun uploadLombaKeDatabase() {
+        // Validasi input
+        if (judul.isEmpty() || tanggal.isEmpty()) {
+            Toast.makeText(context, "⚠️ Judul dan tanggal pelaksanaan wajib diisi!", Toast.LENGTH_SHORT).show()
+            isLoading = false
+            return
+        }
+
         isLoading = true
+
+        // Siapkan data untuk dikirim
+        val biayaToSubmit = if (dapatkanyaNeedsBayar()) {
+            // Kalau perlu bayar, set biaya ke 0 (karena sudah bayar di QRIS)
+            // Backend akan handle kuota berdasarkan wilayah
+            0
+        } else {
+            0 // Gratis
+        }
+
+        // Panggil API
         RetrofitClient.instance.createCompetition(
-            penyelenggaraId   = userId,
-            judul             = judul,
-            kategori          = kategori,
-            tingkatPendidikan = tingkatPendidikan,
-            tingkatLomba      = wilayah,
-            deskripsi         = linkJuknis,
-            linkPendaftaran   = linkPendaftaran,
-            linkPanduan       = linkJuknis,
-            tanggal           = tanggal,
-            tanggalTutup      = tanggalTutup,
-            biaya             = hargaDaftar.toIntOrNull() ?: 0,
-            posterUrl         = posterUrl // <--- INI PINTU POSTERNYA SUDAH SAYA TAMBAHKAN
+            penyelenggara_id = userId,
+            judul_lomba = judul,
+            kategori = kategori,
+            tingkat_pendidikan = tingkatPendidikan,
+            tingkat_lomba = wilayah, // PENTING: gunakan wilayah, bukan parameter lain
+            deskripsi = deskripsi.ifEmpty { linkJuknis },
+            link_pendaftaran = "", // Bisa kosong untuk sekarang
+            link_panduan = linkJuknis,
+            poster_url = "", // Akan diisi dari Cloudinary nanti
+            biaya_pendaftaran = biayaToSubmit,
+            tanggal_tutup_daftar = tanggal,
+            tanggal_pelaksanaan = tanggal
         ).enqueue(object : Callback<LoginResponse> {
             override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                 isLoading = false
-                val body = response.body()
-                // Tampilkan pesan detail dari server
-                Toast.makeText(context, "Server: ${body?.message}", Toast.LENGTH_LONG).show()
-                if (response.isSuccessful && body?.status == "success") {
-                    if (sisaKuota > 0) {
-                        sessionManager.updateSisaKuota(sisaKuota - 1)
-                        sisaKuota--
-                    }
+                if (response.isSuccessful && response.body()?.status == "success") {
+                    Toast.makeText(context, "🎉 Lomba berhasil diterbitkan!", Toast.LENGTH_SHORT).show()
                     showQrisDialog = false
-                    onUploadSuccess()
+
+                    // ===== UPDATE KUOTA LOKAL =====
+                    if (wilayah in listOf("Umum", "Kota") && sisaKuotaGratis > 0) {
+                        sisaKuotaGratis--
+                        val sharedPref = context.getSharedPreferences("user_session", Context.MODE_PRIVATE)
+                        sharedPref.edit().putInt("sisa_kuota", sisaKuotaGratis).apply()
+                    }
+
+                    // ===== TUNGGU SEBENTAR BIAR SERVER SEMPAT SIMPAN, BARU REFRESH =====
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        onUploadSuccess() // Refresh list di HomeScreen
+                    }, 1200)
                 } else {
-                    Toast.makeText(context, response.body()?.message ?: "Gagal", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "❌ Gagal: ${response.body()?.message ?: "Terjadi kesalahan"}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
+
             override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
                 isLoading = false
-                Toast.makeText(context, "Error: ${t.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "⚠️ Error jaringan: ${t.message}", Toast.LENGTH_SHORT).show()
             }
         })
     }
 
+    // ====================================================================
+    // UI UTAMA
+    // ====================================================================
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Buat Lomba Baru", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
+                title = {
+                    Text(
+                        "Buat Lomba Baru",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 18.sp
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.White
+                )
             )
         },
         containerColor = Color.White
@@ -228,235 +196,303 @@ fun CreateCompetitionScreen(onBack: () -> Unit, onUploadSuccess: () -> Unit) {
                 .padding(padding)
                 .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
 
-            // Alert kuota
-            if (sisaKuota <= 0) {
-                Surface(color = Color(0xFFFEF2F2), border = BorderStroke(1.dp, Color(0xFFFCA5A5)), shape = RoundedCornerShape(12.dp)) {
-                    Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Info, null, tint = Color(0xFFDC2626))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Kuota gratis habis. Penerbitan lomba ini akan dikenakan biaya admin.", color = Color(0xFF991B1B), fontSize = 12.sp)
-                    }
-                }
-            } else {
-                Surface(color = Color(0xFFEFF6FF), border = BorderStroke(1.dp, Color(0xFF93C5FD)), shape = RoundedCornerShape(12.dp)) {
-                    Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CardGiftcard, null, tint = Color(0xFF0061D1))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Sisa kuota gratis: $sisaKuota lomba", color = Color(0xFF0061D1), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            // ================================================================
-            // UPLOAD POSTER - BARU!
-            // ================================================================
-            SectionHeader("POSTER LOMBA")
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFF2F2F2))
-                    .border(2.dp, if (selectedImageUri != null) Color(0xFF0061D1) else Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
-                    .clickable { if (!isUploadingImage) imagePickerLauncher.launch("image/*") },
-                contentAlignment = Alignment.Center
-            ) {
-                if (isUploadingImage) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = Color(0xFF0061D1))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Mengupload poster...", fontSize = 12.sp, color = Color.Gray)
-                    }
-                } else if (selectedImageUri != null && posterUrl.isNotEmpty()) {
-                    // Tampilkan preview gambar
-                    AsyncImage(
-                        model = selectedImageUri,
-                        contentDescription = "Poster Lomba",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                    // Overlay tombol ganti
-                    Box(
+            // ===== ALERT KUOTA GRATIS =====
+            if (sisaKuotaGratis <= 0 && userRole == "penyelenggara") {
+                Surface(
+                    color = Color(0xFFFEF2F2),
+                    border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center
+                            .padding(12.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(color = Color.White.copy(0.9f), shape = RoundedCornerShape(50.dp)) {
-                            Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Edit, null, tint = Color(0xFF0061D1), modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Ganti Poster", fontSize = 12.sp, color = Color(0xFF0061D1), fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                } else {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.AddPhotoAlternate, null, tint = Color(0xFF0061D1), modifier = Modifier.size(40.dp))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Tap untuk pilih poster", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0061D1))
-                        Text("JPG, PNG (Opsional)", fontSize = 11.sp, color = Color.Gray)
+                        Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFDC2626))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Kuota gratis (Umum/Kota) sudah habis. Untuk lomba level Provinsi ke atas, ada biaya admin Rp 50.000.",
+                            color = Color(0xFF991B1B),
+                            fontSize = 12.sp
+                        )
                     }
                 }
             }
 
-            if (posterUrl.isNotEmpty()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF22C55E), modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Poster berhasil diupload ke Cloudinary", fontSize = 11.sp, color = Color(0xFF22C55E), fontWeight = FontWeight.Bold)
-                }
-            }
-
-            // ================================================================
-            // INFORMASI DASAR
-            // ================================================================
+            // ===== INFORMASI DASAR =====
             SectionHeader("INFORMASI DASAR")
 
             OutlinedTextField(
-                value = judul, onValueChange = { judul = it },
+                value = judul,
+                onValueChange = { judul = it },
                 label = { Text("Judul Perlombaan *") },
-                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), singleLine = true
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
             )
 
-            // Tingkat Pendidikan
+            // ===== KATEGORI =====
+            Column {
+                Text("Kategori *", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                Spacer(modifier = Modifier.height(8.dp))
+                val kategoriList = listOf("Teknologi & IT", "Seni & Desain", "Olahraga", "Akademik", "Lainnya")
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    kategoriList.forEach { kat ->
+                        SelectableChip(
+                            text = kat,
+                            isSelected = kategori == kat
+                        ) { kategori = kat }
+                    }
+                }
+            }
+
+            // ===== TINGKAT PENDIDIKAN =====
             Column {
                 Text("Tingkat Pendidikan *", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
                 Spacer(modifier = Modifier.height(8.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("SD", "SMP", "SMA/SMK", "Mahasiswa", "Umum").forEach { pend ->
-                        SelectableChip(text = pend, isSelected = tingkatPendidikan == pend) { tingkatPendidikan = pend }
+                val pendidikanList = listOf("Sekolah Dasar (SD)", "SMP / Sederajat", "SMA / SMK", "Mahasiswa / Umum")
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    pendidikanList.forEach { pend ->
+                        SelectableChip(
+                            text = pend,
+                            isSelected = tingkatPendidikan == pend
+                        ) { tingkatPendidikan = pend }
                     }
                 }
             }
 
-            // Tingkat Wilayah
+            // ===== TINGKAT WILAYAH =====
             Column {
                 Text("Tingkat Wilayah Lomba *", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
                 Spacer(modifier = Modifier.height(8.dp))
-                ExposedDropdownMenuBox(expanded = isWilayahDropdownExpanded, onExpandedChange = { isWilayahDropdownExpanded = !isWilayahDropdownExpanded }) {
+                ExposedDropdownMenuBox(
+                    expanded = isWilayahDropdownExpanded,
+                    onExpandedChange = { isWilayahDropdownExpanded = !isWilayahDropdownExpanded }
+                ) {
                     OutlinedTextField(
-                        value = wilayah, onValueChange = {}, readOnly = true,
+                        value = wilayah,
+                        onValueChange = {},
+                        readOnly = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isWilayahDropdownExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
                     )
-                    ExposedDropdownMenu(expanded = isWilayahDropdownExpanded, onDismissRequest = { isWilayahDropdownExpanded = false }) {
-                        listOf("Kota", "Provinsi", "Nasional", "Internasional").forEach { w ->
-                            DropdownMenuItem(text = { Text(w) }, onClick = { wilayah = w; isWilayahDropdownExpanded = false })
+                    ExposedDropdownMenu(
+                        expanded = isWilayahDropdownExpanded,
+                        onDismissRequest = { isWilayahDropdownExpanded = false }
+                    ) {
+                        listOf("Umum", "Kota", "Provinsi", "Nasional", "Internasional").forEach { selection ->
+                            DropdownMenuItem(
+                                text = { Text(selection) },
+                                onClick = {
+                                    wilayah = selection
+                                    isWilayahDropdownExpanded = false
+                                }
+                            )
                         }
                     }
                 }
             }
 
-            // Tanggal Pelaksanaan
+            // ===== TANGGAL PELAKSANAAN =====
             OutlinedTextField(
-                value = tanggal, onValueChange = {},
+                value = tanggal,
+                onValueChange = {},
                 label = { Text("Tanggal Pelaksanaan *") },
-                modifier = Modifier.fillMaxWidth().clickable { datePicker.show() },
-                enabled = false, shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(disabledTextColor = Color.Black, disabledLabelColor = Color.Gray, disabledBorderColor = Color.Gray),
-                trailingIcon = { Icon(Icons.Default.DateRange, null) },
-                placeholder = { Text("Pilih tanggal") }
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { datePickerDialog.show() },
+                enabled = false,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(disabledTextColor = Color.Black),
+                trailingIcon = { Icon(Icons.Default.DateRange, null) }
             )
 
-            // Deadline Pendaftaran
+            // ===== DESKRIPSI =====
             OutlinedTextField(
-                value = tanggalTutup, onValueChange = {},
-                label = { Text("Deadline Pendaftaran") },
-                modifier = Modifier.fillMaxWidth().clickable { dateTutupPicker.show() },
-                enabled = false, shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(disabledTextColor = Color.Black, disabledLabelColor = Color.Gray, disabledBorderColor = Color.Gray),
-                trailingIcon = { Icon(Icons.Default.EventBusy, null) },
-                placeholder = { Text("Pilih deadline (opsional)") }
+                value = deskripsi,
+                onValueChange = { deskripsi = it },
+                label = { Text("Deskripsi Lomba") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp),
+                shape = RoundedCornerShape(12.dp)
             )
 
+            // ===== LINK JUKNIS =====
             OutlinedTextField(
-                value = hargaDaftar, onValueChange = { hargaDaftar = it },
-                label = { Text("Biaya Pendaftaran (Rp) - 0 jika gratis") },
-                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
+                value = linkJuknis,
+                onValueChange = { linkJuknis = it },
+                label = { Text("Link GDrive Juknis / Panduan") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
             )
 
-            OutlinedTextField(
-                value = linkPendaftaran, onValueChange = { linkPendaftaran = it },
-                label = { Text("Link Pendaftaran (Google Form, dll)") },
-                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
-            )
+            Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = linkJuknis, onValueChange = { linkJuknis = it },
-                label = { Text("Link Juknis / Deskripsi") },
-                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
-            )
-
-            // Tombol submit
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text("Batal", color = Color.Gray, fontWeight = FontWeight.Bold) }
+            // ===== TOMBOL SUBMIT =====
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onBack) {
+                    Text("Batal", color = Color.Gray, fontWeight = FontWeight.Bold)
+                }
                 Spacer(modifier = Modifier.width(16.dp))
                 Button(
                     onClick = {
-                        if (judul.isNotEmpty() && tanggal.isNotEmpty()) {
-                            val isPremium = wilayah in listOf("Provinsi", "Nasional", "Internasional")
-                            val isGratisHabis = (wilayah in listOf("Umum", "Kota")) && sisaKuotaGratis <= 0
-                            if (isPremium || isGratisHabis) { showQrisDialog = true
-                            }
-                            else uploadLomba()
+                        if (judul.isEmpty() || tanggal.isEmpty()) {
+                            Toast.makeText(
+                                context,
+                                "⚠️ Judul dan tanggal pelaksanaan wajib diisi!",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         } else {
-                            Toast.makeText(context, "Judul dan Tanggal wajib diisi!", Toast.LENGTH_SHORT).show()
+                            // CEK APAKAH PERLU BAYAR
+                            if (dapatkanyaNeedsBayar()) {
+                                showQrisDialog = true
+                            } else {
+                                // LANGSUNG UPLOAD (GRATIS & ADA KUOTA)
+                                uploadLombaKeDatabase()
+                            }
                         }
                     },
-                    modifier = Modifier.height(50.dp),
+                    modifier = Modifier
+                        .height(50.dp),
                     shape = RoundedCornerShape(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0061D1)),
-                    enabled = !isLoading && !isUploadingImage
+                    enabled = !isLoading
                 ) {
-                    if (isLoading) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    else Text("Terbitkan Lomba", fontWeight = FontWeight.Bold)
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Text("Terbitkan Lomba Sekarang", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(40.dp))
         }
 
-        // Dialog QRIS
+        // ====================================================================
+        // DIALOG PEMBAYARAN QRIS
+        // ====================================================================
         if (showQrisDialog) {
+            val biayaAdmin = dapatkaBiayaPembayaran()
             AlertDialog(
                 onDismissRequest = { showQrisDialog = false },
                 containerColor = Color.White,
                 shape = RoundedCornerShape(24.dp),
                 title = {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(Color(0xFFE5F0FF)), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.QrCodeScanner, null, tint = Color(0xFF0061D1))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFE5F0FF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.QrCodeScanner,
+                                contentDescription = null,
+                                tint = Color(0xFF0061D1)
+                            )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text("Pembayaran Platform", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, textAlign = TextAlign.Center)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Pembayaran Layanan",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 20.sp,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 },
                 text = {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        Text("Penerbitan lomba tingkat $wilayah memerlukan biaya platform.", textAlign = TextAlign.Center, fontSize = 13.sp, color = Color.Gray)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (wilayah in listOf("Provinsi", "Nasional", "Internasional")) {
+                                "Penerbitan lomba untuk tingkat $wilayah memerlukan biaya admin platform."
+                            } else {
+                                "Kuota gratis Anda sudah habis. Untuk melanjutkan, diperlukan pembayaran admin platform."
+                            },
+                            textAlign = TextAlign.Center,
+                            fontSize = 13.sp,
+                            color = Color.Gray
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Box(modifier = Modifier.size(150.dp).background(Color.White).border(2.dp, Color(0xFF0061D1), RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.QrCode2, null, modifier = Modifier.size(120.dp), tint = Color.Black)
+                        Box(
+                            modifier = Modifier
+                                .size(150.dp)
+                                .background(Color.White)
+                                .border(2.dp, Color(0xFF0061D1), RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.QrCode2,
+                                contentDescription = "QRIS",
+                                modifier = Modifier.size(120.dp),
+                                tint = Color.Black
+                            )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text("Total Tagihan", color = Color.Gray, fontSize = 12.sp)
-                        Text("Rp 50.000", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = Color(0xFF0061D1))
+                        Text(
+                            "Rp ${String.format("%,d", biayaAdmin).replace(",", ".")}",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 24.sp,
+                            color = Color(0xFF0061D1)
+                        )
                     }
                 },
                 confirmButton = {
-                    Button(onClick = { uploadLomba() }, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(50.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0061D1))) {
-                        Text("Saya Sudah Bayar & Terbitkan", fontWeight = FontWeight.Bold)
+                    Button(
+                        onClick = { uploadLombaKeDatabase() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0061D1)),
+                        enabled = !isLoading
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            Text("Saya Sudah Bayar & Terbitkan", fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showQrisDialog = false }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Batalkan", color = Color.Gray)
+                    TextButton(
+                        onClick = { showQrisDialog = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Batalkan", color = Color.Gray, fontWeight = FontWeight.Bold)
                     }
                 }
             )
@@ -464,12 +500,25 @@ fun CreateCompetitionScreen(onBack: () -> Unit, onUploadSuccess: () -> Unit) {
     }
 }
 
+// ====================================================================
+// KOMPONEN UI BANTUAN
+// ====================================================================
 @Composable
 fun SectionHeader(title: String, paddingBottom: Int = 8) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.width(4.dp).height(18.dp).background(Color(0xFF0061D1), RoundedCornerShape(4.dp)))
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(18.dp)
+                .background(Color(0xFF0061D1), RoundedCornerShape(4.dp))
+        )
         Spacer(modifier = Modifier.width(8.dp))
-        Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color.DarkGray)
+        Text(
+            title,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 14.sp,
+            color = Color.DarkGray
+        )
     }
     Spacer(modifier = Modifier.height(paddingBottom.dp))
 }
@@ -479,9 +528,18 @@ fun SelectableChip(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         color = if (isSelected) Color(0xFFE5F0FF) else Color.White,
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, if (isSelected) Color(0xFF0061D1) else Color.LightGray),
+        border = BorderStroke(
+            1.dp,
+            if (isSelected) Color(0xFF0061D1) else Color.LightGray
+        ),
         modifier = Modifier.clickable { onClick() }
     ) {
-        Text(text, color = if (isSelected) Color(0xFF0061D1) else Color.Gray, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp))
+        Text(
+            text = text,
+            color = if (isSelected) Color(0xFF0061D1) else Color.Gray,
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+        )
     }
 }

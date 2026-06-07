@@ -1,60 +1,52 @@
 package com.example.winly.api
 
-import com.google.gson.annotations.SerializedName
 import retrofit2.Call
 import retrofit2.http.*
 
-// Model untuk UserInfo & UserResponse
-data class UserResponse(
-    @SerializedName("status")     val status: String? = null,
-    @SerializedName("message")    val message: String? = null,
-    @SerializedName("data")       val data: UserInfoData? = null
-)
-
-data class UserInfoData(
-    @SerializedName("id")          val id: Int? = 0,
-    @SerializedName("name")        val name: String? = null,
-    @SerializedName("email")       val email: String? = null,
-    @SerializedName("role")        val role: String? = null,
-    @SerializedName("sisa_kuota")  val sisaKuota: Int? = 0,
-    @SerializedName("instansi")    val instansi: String? = null,
-    @SerializedName("phone")       val phone: String? = null,
-    @SerializedName("avatar_url")  val avatarUrl: String? = null
-)
-
-// ============================================================
-// API SERVICE - Semua endpoint Winly
-// ============================================================
 interface ApiService {
 
-    // 1. LOGIN
+    // ===== AUTH =====
     @FormUrlEncoded
     @POST("login.php")
-    fun loginUser(
+    fun login(
         @Field("email") email: String,
         @Field("password") password: String
     ): Call<LoginResponse>
 
-    // 2. REGISTER
     @FormUrlEncoded
     @POST("register.php")
-    fun registerUser(
+    fun register(
         @Field("name") name: String,
         @Field("email") email: String,
         @Field("password") password: String,
         @Field("role") role: String,
-        @Field("instansi") instansi: String = ""
+        @Field("instansi") instansi: String
     ): Call<LoginResponse>
 
-    // 3. VERIFIKASI OTP
     @FormUrlEncoded
     @POST("verify.php")
-    fun verifyUser(
+    fun verifyOtp(
         @Field("email") email: String,
         @Field("code") code: String
     ): Call<LoginResponse>
 
-    // 4. AMBIL SEMUA LOMBA
+    @FormUrlEncoded
+    @POST("forgot_password.php")
+    fun sendOtp(
+        @Field("action") action: String,
+        @Field("email") email: String
+    ): Call<LoginResponse>
+
+    @FormUrlEncoded
+    @POST("forgot_password.php")
+    fun resetPassword(
+        @Field("action") action: String,
+        @Field("email") email: String,
+        @Field("otp") otp: String,
+        @Field("new_password") newPassword: String
+    ): Call<LoginResponse>
+
+    // ===== COMPETITIONS =====
     @GET("get_competitions.php")
     fun getCompetitions(
         @Query("search") search: String? = null,
@@ -63,100 +55,207 @@ interface ApiService {
         @Query("tingkat_lomba") tingkatLomba: String? = null
     ): Call<CompetitionResponse>
 
-    // 5. DETAIL SATU LOMBA (INI YANG SUDAH DIPERBAIKI)
     @GET("get_competition_detail.php")
     fun getCompetitionDetail(
         @Query("id") id: Int
     ): Call<CompetitionDetailResponse>
 
-    // 6. LOMBA MILIK PENYELENGGARA
-    @GET("get_my_competitions.php")
-    fun getMyCompetitions(
-        @Query("penyelenggara_id") id: Int
-    ): Call<CompetitionResponse>
-
-    // 7. BUAT LOMBA BARU (SUDAH ADA POSTER URL)
     @FormUrlEncoded
     @POST("create_competition.php")
     fun createCompetition(
-        @Field("penyelenggara_id")   penyelenggaraId: Int,
-        @Field("judul_lomba")        judul: String,
-        @Field("kategori")           kategori: String,
-        @Field("tingkat_pendidikan") tingkatPendidikan: String,
-        @Field("tingkat_lomba")      tingkatLomba: String,
-        @Field("deskripsi")          deskripsi: String,
-        @Field("link_pendaftaran")   linkPendaftaran: String,
-        @Field("link_panduan")       linkPanduan: String,
-        @Field("tanggal_pelaksanaan") tanggal: String,
-        @Field("tanggal_tutup_daftar") tanggalTutup: String,
-        @Field("biaya_pendaftaran")  biaya: Int,
-        @Field("poster_url")         posterUrl: String = "" // TAMBAHKAN INI
+        @Field("penyelenggara_id") penyelenggara_id: Int,
+        @Field("judul_lomba") judul_lomba: String,
+        @Field("kategori") kategori: String,
+        @Field("tingkat_pendidikan") tingkat_pendidikan: String,
+        @Field("tingkat_lomba") tingkat_lomba: String,
+        @Field("deskripsi") deskripsi: String,
+        @Field("link_pendaftaran") link_pendaftaran: String,
+        @Field("link_panduan") link_panduan: String,
+        @Field("poster_url") poster_url: String,
+        @Field("biaya_pendaftaran") biaya_pendaftaran: Int,
+        @Field("tanggal_tutup_daftar") tanggal_tutup_daftar: String,
+        @Field("tanggal_pelaksanaan") tanggal_pelaksanaan: String
     ): Call<LoginResponse>
 
-    // 8. HAPUS LOMBA
+    @GET("get_my_competitions.php")
+    fun getMyCompetitions(
+        @Query("penyelenggara_id") penyelenggaraId: Int
+    ): Call<CompetitionResponse>
+
     @FormUrlEncoded
     @POST("delete_competition.php")
     fun deleteCompetition(
-        @Field("competition_id")   competitionId: Int,
+        @Field("competition_id") competitionId: Int,
         @Field("penyelenggara_id") penyelenggaraId: Int
     ): Call<LoginResponse>
 
-    // 9. INFO USER
-    @GET("get_user_info.php")
-    fun getUserInfo(
-        @Query("user_id") userId: Int
-    ): Call<UserResponse>
-
-    // 10. BOOKMARK - GET
+    // ===== BOOKMARKS =====
     @GET("bookmark.php")
     fun getBookmarks(
         @Query("user_id") userId: Int
     ): Call<BookmarkResponse>
 
-    // 11. BOOKMARK - POST
     @FormUrlEncoded
     @POST("bookmark.php")
     fun toggleBookmark(
-        @Field("user_id")        userId: Int,
+        @Field("user_id") userId: Int,
         @Field("competition_id") competitionId: Int
-    ): Call<BookmarkResponse>
-
-    // 12. AMBIL SERTIFIKAT USER
-    @GET("get_certificates.php")
-    fun getCertificates(
-        @Query("user_id") userId: Int
     ): Call<LoginResponse>
 
-    // 13. FORGOT PASSWORD - Kirim OTP
-    @FormUrlEncoded
-    @POST("forgot_password.php")
-    fun sendForgotOtp(
-        @Field("action") action: String = "send_otp",
-        @Field("email")  email: String
-    ): Call<LoginResponse>
-
-    // 14. FORGOT PASSWORD - Reset Password
-    @FormUrlEncoded
-    @POST("forgot_password.php")
-    fun resetPassword(
-        @Field("action")       action: String = "reset_password",
-        @Field("email")        email: String,
-        @Field("otp")          otp: String,
-        @Field("new_password") newPassword: String
-    ): Call<LoginResponse>
-
-    // 15. GET REGISTRATIONS
+    // ===== REGISTRATIONS =====
     @GET("get_registrations.php")
     fun getRegistrations(
         @Query("competition_id") competitionId: Int
-    ): Call<RegistrationResponse> // Pastikan file RegistrationResponse.kt sudah ada atau biarkan error kuning sementara jika belum dibuat
+    ): Call<RegistrationResponse>
 
-    // 16. UPDATE STATUS PENDAFTARAN
     @FormUrlEncoded
     @POST("update_registration.php")
     fun updateRegistration(
         @Field("registration_id") registrationId: Int,
-        @Field("status")          status: String,
-        @Field("catatan")         catatan: String = ""
+        @Field("status") status: String,
+        @Field("catatan") catatan: String
     ): Call<LoginResponse>
+
+    // ===== CERTIFICATES (BARU) =====
+    @GET("get_certificates.php")
+    fun getCertificates(
+        @Query("user_id") userId: Int
+    ): Call<CertificateResponse>
+
+    // ===== USER =====
+    @GET("get_user_info.php")
+    fun getUserInfo(
+        @Query("user_id") userId: Int
+    ): Call<UserInfoResponse>
 }
+
+// ===== RESPONSE DATA CLASSES =====
+data class LoginResponse(
+    val status: String,
+    val message: String = "",
+    val otp: String? = null,
+    val email: String? = null,
+    val data: UserData? = null
+)
+
+data class UserData(
+    val id: Int,
+    val name: String,
+    val email: String,
+    val role: String,
+    val sisa_kuota: Int,
+    val instansi: String?,
+    val phone: String?,
+    val avatar_url: String?
+)
+
+data class CompetitionResponse(
+    val status: String,
+    val total: Int = 0,
+    val data: List<Competition> = emptyList(),
+    val message: String = ""
+)
+
+data class Competition(
+    val id: Int,
+    val judul_lomba: String,
+    val kategori: String,
+    val tingkat_pendidikan: String,
+    val tingkat_lomba: String,
+    val deskripsi: String,
+    val link_pendaftaran: String?,
+    val poster_url: String?,
+    val biaya_pendaftaran: Int,
+    val tanggal_buka_daftar: String?,
+    val tanggal_tutup_daftar: String,
+    val tanggal_pelaksanaan: String,
+    val status: String,
+    val is_verified: Boolean,
+    val nama_penyelenggara: String,
+    val instansi_penyelenggara: String?
+)
+
+data class CompetitionDetailResponse(
+    val status: String,
+    val data: Competition? = null,
+    val message: String = ""
+)
+
+data class BookmarkResponse(
+    val status: String,
+    val total: Int = 0,
+    val data: List<BookmarkedCompetition> = emptyList()
+)
+
+data class BookmarkedCompetition(
+    val bookmark_id: Int,
+    val bookmarked_at: String,
+    val id: Int,
+    val judul_lomba: String,
+    val kategori: String,
+    val tingkat_pendidikan: String,
+    val tingkat_lomba: String,
+    val biaya_pendaftaran: Int,
+    val tanggal_tutup_daftar: String,
+    val tanggal_pelaksanaan: String,
+    val status: String,
+    val nama_penyelenggara: String
+)
+
+data class RegistrationResponse(
+    val status: String,
+    val total: Int = 0,
+    val data: List<Registration> = emptyList()
+)
+
+data class Registration(
+    val id: Int,
+    val peserta_id: Int,
+    val competition_id: Int,
+    val status_pendaftaran: String,
+    val bukti_follow: String?,
+    val bukti_share: String?,
+    val catatan: String?,
+    val created_at: String,
+    val nama_peserta: String,
+    val email_peserta: String,
+    val instansi_peserta: String?
+)
+
+data class CertificateResponse(
+    val status: String,
+    val total: Int = 0,
+    val data: List<Certificate> = emptyList(),
+    val message: String = ""
+)
+
+data class Certificate(
+    val id: Int,
+    val nama_pemenang: String,
+    val predikat: String,
+    val file_sertifikat: String,
+    val nama_penyelenggara: String,
+    val tahun: String,
+    val created_at: String,
+    val judul_lomba: String,
+    val kategori: String,
+    val tingkat_lomba: String
+)
+
+data class UserInfoResponse(
+    val status: String,
+    val data: UserProfile? = null,
+    val message: String = ""
+)
+
+data class UserProfile(
+    val id: Int,
+    val name: String,
+    val email: String,
+    val role: String,
+    val sisa_kuota: Int,
+    val instansi: String,
+    val phone: String,
+    val avatar_url: String,
+    val created_at: String
+)
