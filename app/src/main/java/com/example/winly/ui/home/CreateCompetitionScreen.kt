@@ -107,7 +107,17 @@ fun CreateCompetitionScreen(onBack: () -> Unit, onUploadSuccess: () -> Unit) {
 
     // Ambil userId dari session - FIX hardcode!
     val userId = sessionManager.getUserId()
-    var sisaKuota by remember { mutableIntStateOf(sessionManager.getSisaKuota()) }
+    var sisaKuotaGratis by remember { mutableIntStateOf(5) } // Default 5, ambil dari backend nanti
+    var userRole by remember { mutableStateOf("") } // 'peserta' atau 'penyelenggara'
+    var userId by remember { mutableIntStateOf(0) }
+
+// Ambil data user saat pertama kali screen dibuka
+    LaunchedEffect(Unit) {
+        val sharedPref = context.getSharedPreferences("user_session", Context.MODE_PRIVATE)
+        userId = sharedPref.getInt("user_id", 0)
+        userRole = sharedPref.getString("role", "") ?: ""
+        sisaKuotaGratis = sharedPref.getInt("sisa_kuota", 5)
+    }
 
     var isLoading by remember { mutableStateOf(false) }
     var isUploadingImage by remember { mutableStateOf(false) }
@@ -391,7 +401,9 @@ fun CreateCompetitionScreen(onBack: () -> Unit, onUploadSuccess: () -> Unit) {
                     onClick = {
                         if (judul.isNotEmpty() && tanggal.isNotEmpty()) {
                             val isPremium = wilayah in listOf("Provinsi", "Nasional", "Internasional")
-                            if (isPremium || sisaKuota <= 0) showQrisDialog = true
+                            val isGratisHabis = (wilayah in listOf("Umum", "Kota")) && sisaKuotaGratis <= 0
+                            if (isPremium || isGratisHabis) { showQrisDialog = true
+                            }
                             else uploadLomba()
                         } else {
                             Toast.makeText(context, "Judul dan Tanggal wajib diisi!", Toast.LENGTH_SHORT).show()
