@@ -19,7 +19,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.winly.api.Certificate
 import com.example.winly.api.CertificateResponse
 import com.example.winly.api.RetrofitClient
 import retrofit2.Call
@@ -35,7 +34,7 @@ fun PortfolioScreen(userId: Int? = null) {
         sharedPref.getInt("user_id", 0)
     }
 
-    var certificates by remember { mutableStateOf<List<Certificate>>(emptyList()) }
+    var certificates by remember { mutableStateOf<List<Any>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
 
@@ -48,10 +47,7 @@ fun PortfolioScreen(userId: Int? = null) {
 
         RetrofitClient.instance.getCertificates(actualUserId)
             .enqueue(object : Callback<CertificateResponse> {
-                override fun onResponse(
-                    call: Call<CertificateResponse>,
-                    response: Response<CertificateResponse>
-                ) {
+                override fun onResponse(call: Call<CertificateResponse>, response: Response<CertificateResponse>) {
                     isLoading = false
                     if (response.isSuccessful) {
                         certificates = response.body()?.data ?: emptyList()
@@ -67,222 +63,86 @@ fun PortfolioScreen(userId: Int? = null) {
             })
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.EmojiEvents,
-                contentDescription = null,
-                tint = Color(0xFF0061D1),
-                modifier = Modifier.size(28.dp)
-            )
+    Column(modifier = Modifier.fillMaxSize().background(Color.White).padding(16.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFF0061D1), modifier = Modifier.size(28.dp))
             Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                "Portofolio Saya",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 20.sp,
-                color = Color.DarkGray
-            )
+            Text("Portofolio Saya", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = Color.DarkGray)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Color(0xFF0061D1))
             }
             return@Column
         }
 
         if (errorMessage.isNotEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(errorMessage, color = Color.Gray, fontSize = 14.sp)
             }
             return@Column
         }
 
         if (certificates.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(24.dp)
-                ) {
-                    Icon(
-                        Icons.Default.EmojiEvents,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(64.dp)
-                    )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                    Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Belum Ada Sertifikat",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = Color.DarkGray
-                    )
+                    Text("Belum Ada Sertifikat", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.DarkGray)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Ikuti perlombaan dan menangkan hadiah untuk mendapatkan sertifikat! 🎉",
-                        textAlign = TextAlign.Center,
-                        color = Color.Gray,
-                        fontSize = 13.sp
-                    )
+                    Text("Ikuti perlombaan dan menangkan hadiah untuk mendapatkan sertifikat! 🎉", textAlign = TextAlign.Center, color = Color.Gray, fontSize = 13.sp)
                 }
             }
             return@Column
         }
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(certificates) { cert ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F9FF)),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(end = 8.dp)
-                            ) {
-                                Text(
-                                    cert.judulLomba ?: "N/A",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF0061D1)
-                                )
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
+            items(certificates.size) { index ->
+                val cert = certificates[index] as? Map<*, *> ?: return@items
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F9FF)), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(cert["judul_lomba"]?.toString() ?: "N/A", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF0061D1))
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    "${cert.tingkatLomba ?: "N/A"} • ${cert.kategori ?: "N/A"}",
-                                    fontSize = 11.sp,
-                                    color = Color.Gray
-                                )
+                                Text("${cert["tingkat_lomba"] ?: "N/A"} • ${cert["kategori"] ?: "N/A"}", fontSize = 11.sp, color = Color.Gray)
                             }
-
-                            Surface(
-                                color = when (cert.predikat?.lowercase()) {
-                                    "juara 1" -> Color(0xFFFFD700)
-                                    "juara 2" -> Color(0xFFC0C0C0)
-                                    "juara 3" -> Color(0xFFCD7F32)
-                                    else -> Color(0xFFE0E0E0)
-                                },
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    cert.predikat ?: "N/A",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp,
-                                    color = Color.Black,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
+                            Surface(color = when (cert["predikat"]?.toString()?.lowercase()) {
+                                "juara 1" -> Color(0xFFFFD700)
+                                "juara 2" -> Color(0xFFC0C0C0)
+                                "juara 3" -> Color(0xFFCD7F32)
+                                else -> Color(0xFFE0E0E0)
+                            }, shape = RoundedCornerShape(6.dp)) {
+                                Text(cert["predikat"]?.toString() ?: "N/A", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color.Black, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                             }
                         }
-
                         Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f)
-                            ) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text("Penyelenggara", fontSize = 10.sp, color = Color.Gray)
-                                Text(
-                                    cert.namaPenyelenggara ?: "N/A",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.DarkGray
-                                )
+                                Text(cert["nama_penyelenggara"]?.toString() ?: "N/A", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.DarkGray)
                             }
                             Column {
                                 Text("Tahun", fontSize = 10.sp, color = Color.Gray)
-                                Text(
-                                    cert.tahun ?: "N/A",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.DarkGray
-                                )
+                                Text(cert["tahun"]?.toString() ?: "N/A", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.DarkGray)
                             }
                         }
-
                         Spacer(modifier = Modifier.height(12.dp))
-
                         Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
-
                         Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(40.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "Atas Nama: ${cert.namaPemenang ?: "N/A"}",
-                                fontSize = 11.sp,
-                                color = Color.Gray,
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            Button(
-                                onClick = { },
-                                modifier = Modifier
-                                    .height(36.dp)
-                                    .wrapContentWidth(),
-                                shape = RoundedCornerShape(6.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF0061D1)
-                                )
-                            ) {
-                                Icon(
-                                    Icons.Default.Download,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                        Row(modifier = Modifier.fillMaxWidth().height(40.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("Atas Nama: ${cert["nama_pemenang"] ?: "N/A"}", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.weight(1f))
+                            Button(onClick = { }, modifier = Modifier.height(36.dp).wrapContentWidth(), shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0061D1))) {
+                                Icon(Icons.Default.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    "Download",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
+                                Text("Download", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
                 }
-            }
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }

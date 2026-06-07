@@ -20,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.winly.api.BookmarkedCompetition
 import com.example.winly.api.BookmarkResponse
 import com.example.winly.api.LoginResponse
 import com.example.winly.api.RetrofitClient
@@ -37,7 +36,7 @@ fun BookmarkScreen(userId: Int? = null) {
         sharedPref.getInt("user_id", 0)
     }
 
-    var bookmarks by remember { mutableStateOf<List<BookmarkedCompetition>>(emptyList()) }
+    var bookmarks by remember { mutableStateOf<List<Any>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
     var refreshKey by remember { mutableStateOf(0) }
@@ -117,172 +116,72 @@ fun BookmarkScreen(userId: Int? = null) {
         Spacer(modifier = Modifier.height(16.dp))
 
         if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Color(0xFF0061D1))
             }
             return@Column
         }
 
         if (errorMessage.isNotEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(errorMessage, color = Color.Gray, fontSize = 14.sp)
             }
             return@Column
         }
 
         if (bookmarks.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(24.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Favorite,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(64.dp)
-                    )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                    Icon(Icons.Default.Favorite, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Belum Ada Bookmark",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = Color.DarkGray
-                    )
+                    Text("Belum Ada Bookmark", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.DarkGray)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Simpan lomba favorit untuk akses cepat 📌",
-                        textAlign = TextAlign.Center,
-                        color = Color.Gray,
-                        fontSize = 13.sp
-                    )
+                    Text("Simpan lomba favorit untuk akses cepat 📌", textAlign = TextAlign.Center, color = Color.Gray, fontSize = 13.sp)
                 }
             }
             return@Column
         }
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(bookmarks) { bookmark ->
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
+            items(bookmarks.size) { index ->
+                val bookmark = bookmarks[index] as? Map<*, *> ?: return@items
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5F9)),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(end = 8.dp)
-                            ) {
-                                Text(
-                                    bookmark.judulLomba ?: "N/A",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF0061D1)
-                                )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(bookmark["judul_lomba"]?.toString() ?: "N/A", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF0061D1))
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    bookmark.namaPenyelenggara ?: "N/A",
-                                    fontSize = 11.sp,
-                                    color = Color.Gray
-                                )
+                                Text(bookmark["nama_penyelenggara"]?.toString() ?: "N/A", fontSize = 11.sp, color = Color.Gray)
                             }
-
-                            IconButton(
-                                onClick = { hapusBookmark(bookmark.id ?: 0) },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.BookmarkRemove,
-                                    contentDescription = "Hapus bookmark",
-                                    tint = Color(0xFFE91E63),
-                                    modifier = Modifier.size(20.dp)
-                                )
+                            IconButton(onClick = { hapusBookmark((bookmark["id"] as? Number)?.toInt() ?: 0) }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.BookmarkRemove, contentDescription = "Hapus", tint = Color(0xFFE91E63), modifier = Modifier.size(20.dp))
                             }
                         }
-
                         Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Surface(
-                                color = Color(0xFFE5F0FF),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    bookmark.kategori ?: "N/A",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF0061D1),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(color = Color(0xFFE5F0FF), shape = RoundedCornerShape(6.dp)) {
+                                Text(bookmark["kategori"]?.toString() ?: "N/A", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0061D1), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                             }
-
-                            Surface(
-                                color = Color(0xFFFFF4E0),
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    bookmark.tingkatLomba ?: "N/A",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFFF9800),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
+                            Surface(color = Color(0xFFFFF4E0), shape = RoundedCornerShape(6.dp)) {
+                                Text(bookmark["tingkat_lomba"]?.toString() ?: "N/A", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                             }
                         }
-
                         Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                             Column {
                                 Text("Tutup Daftar", fontSize = 10.sp, color = Color.Gray)
-                                Text(
-                                    bookmark.tanggalTutupDaftar ?: "N/A",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color.DarkGray
-                                )
+                                Text(bookmark["tanggal_tutup_daftar"]?.toString() ?: "N/A", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.DarkGray)
                             }
-
-                            Text(
-                                if (bookmark.biayaPendaftaran == 0) "Gratis" else "Rp ${String.format("%,d", bookmark.biayaPendaftaran ?: 0).replace(",", ".")}",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp,
-                                color = if (bookmark.biayaPendaftaran == 0) Color(0xFF4CAF50) else Color(0xFF0061D1)
-                            )
+                            val biaya = (bookmark["biaya_pendaftaran"] as? Number)?.toInt() ?: 0
+                            Text(if (biaya == 0) "Gratis" else "Rp ${String.format("%,d", biaya).replace(",", ".")}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = if (biaya == 0) Color(0xFF4CAF50) else Color(0xFF0061D1))
                         }
                     }
                 }
-            }
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
