@@ -1,6 +1,5 @@
 package com.example.winly.ui.home
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Explore
@@ -32,9 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.winly.api.BookmarkResponse
 import com.example.winly.api.CompetitionModel
 import com.example.winly.api.CompetitionResponse
-import com.example.winly.api.LoginResponse
 import com.example.winly.api.RetrofitClient
 import com.example.winly.api.UserResponse
 import com.example.winly.data.SessionManager
@@ -57,10 +57,6 @@ fun hitungSisaHari(tanggalLomba: String?): String {
     } catch (e: Exception) { "Tanggal segera hadir" }
 }
 
-val listKategori = listOf("Teknologi & IT", "Sains & Matematika", "Ekonomi & Bisnis", "Karya Tulis & Riset", "Seni & Desain", "Soshum & Hukum")
-val listPendidikan = listOf("SD", "SMP", "SMA/SMK", "Mahasiswa", "Umum")
-val listTingkat = listOf("Kota", "Provinsi", "Nasional", "Internasional")
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(
@@ -72,16 +68,6 @@ fun HomeScreen(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var isFilterOpen by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-
-    var selectedKategori by remember { mutableStateOf("") }
-    var selectedPendidikan by remember { mutableStateOf("") }
-    var selectedTingkat by remember { mutableStateOf("") }
-    var tempKategori by remember { mutableStateOf("") }
-    var tempPendidikan by remember { mutableStateOf("") }
-    var tempTingkat by remember { mutableStateOf("") }
-
-    val activeFilterCount = listOf(selectedKategori, selectedPendidikan, selectedTingkat).count { it.isNotEmpty() }
 
     Scaffold(containerColor = Color.White) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -93,14 +79,9 @@ fun HomeScreen(
                     )
                 } else {
                     PesertaDashboard(
-                        onOpenFilter = {isFilterOpen = true },
-                        onNavigateToDetail = { selectedTab = 2 },
-                        searchQuery = searchQuery,
-                        onSearchQueryChange = { searchQuery = it },
-                        activeKategori = selectedKategori,
-                        activePendidikan = selectedPendidikan,
-                        activeTingkat = selectedTingkat,
-                        activeFilterCount = activeFilterCount
+                        onOpenFilter = { isFilterOpen = true },
+                        onNavigateToDetail = onNavigateToDetail,
+                        onNavigateToPortfolio = { selectedTab = 2 }
                     )
                 }
                 1 -> ExploreScreen(onNavigateToDetail = onNavigateToDetail)
@@ -123,29 +104,15 @@ fun HomeScreen(
             ) {
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Filter Lomba", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                        TextButton(onClick = { tempKategori = ""; tempPendidikan = ""; tempTingkat = "" }) {
-                            Text("Reset Semua", color = Color(0xFF0061D1), fontWeight = FontWeight.Bold)
-                        }
+                        Text("Filter Lomba", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                        TextButton(onClick = { }) { Text("Reset Semua", color = Color(0xFF0061D1), fontWeight = FontWeight.Bold) }
                     }
-                    Spacer(modifier = Modifier.height(20.dp))
-                    FilterSection(title = "Kategori", options = listKategori, selected = tempKategori, onSelect = { tempKategori = if (tempKategori == it) "" else it })
-                    Spacer(modifier = Modifier.height(20.dp))
-                    FilterSection(title = "Jenjang Pendidikan", options = listPendidikan, selected = tempPendidikan, onSelect = { tempPendidikan = if (tempPendidikan == it) "" else it })
-                    Spacer(modifier = Modifier.height(20.dp))
-                    FilterSection(title = "Tingkat Lomba", options = listTingkat, selected = tempTingkat, onSelect = { tempTingkat = if (tempTingkat == it) "" else it })
-                    Spacer(modifier = Modifier.height(28.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                     Button(
-                        onClick = { selectedKategori = tempKategori; selectedPendidikan = tempPendidikan; selectedTingkat = tempTingkat; isFilterOpen = false },
-                        modifier = Modifier.fillMaxWidth().height(56.dp).shadow(4.dp, RoundedCornerShape(50.dp)),
-                        shape = RoundedCornerShape(50.dp),
+                        onClick = { isFilterOpen = false },
+                        modifier = Modifier.fillMaxWidth().height(60.dp).shadow(8.dp, RoundedCornerShape(50.dp)),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0061D1))
-                    ) {
-                        Icon(Icons.Default.FilterList, null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        val aktif = listOf(tempKategori, tempPendidikan, tempTingkat).count { it.isNotEmpty() }
-                        Text(if (aktif > 0) "Terapkan $aktif Filter" else "Terapkan Filter", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
+                    ) { Text("Terapkan Filter", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
                     Spacer(modifier = Modifier.height(40.dp))
                 }
             }
@@ -153,34 +120,9 @@ fun HomeScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun FilterSection(title: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    Column {
-        Text(title, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Color.DarkGray)
-        Spacer(modifier = Modifier.height(10.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            options.forEach { option ->
-                val isSelected = selected == option
-                Surface(modifier = Modifier.clickable { onSelect(option) }, shape = RoundedCornerShape(50.dp), color = if (isSelected) Color(0xFF0061D1) else Color(0xFFF2F2F2), border = if (isSelected) null else BorderStroke(1.dp, Color(0xFFE0E0E0))) {
-                    Text(option, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp), fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, color = if (isSelected) Color.White else Color.DarkGray)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ActiveFilterChip(label: String, onRemove: () -> Unit) {
-    Surface(shape = RoundedCornerShape(50.dp), color = Color(0xFFE5F0FF), border = BorderStroke(1.dp, Color(0xFF0061D1))) {
-        Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(label, fontSize = 11.sp, color = Color(0xFF0061D1), fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(Icons.Default.Close, null, tint = Color(0xFF0061D1), modifier = Modifier.size(14.dp).clickable { onRemove() })
-        }
-    }
-}
-
+// ====================================================================
+// PROFILE TAB
+// ====================================================================
 @Composable
 fun ProfileTab(onLogout: () -> Unit) {
     val context = LocalContext.current
@@ -237,6 +179,9 @@ fun ProfileInfoRow(icon: ImageVector, label: String, value: String) {
     }
 }
 
+// ====================================================================
+// DASHBOARD PENYELENGGARA
+// ====================================================================
 @Composable
 fun PenyelenggaraDashboard(
     onNavigateToCreate: () -> Unit,
@@ -284,14 +229,13 @@ fun PenyelenggaraDashboard(
                     onClick = {
                         showDeleteDialog = false
                         RetrofitClient.instance.deleteCompetition(selectedLombaId!!, userId)
-                            .enqueue(object : Callback<LoginResponse> {
-                                override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
+                            .enqueue(object : Callback<com.example.winly.api.LoginResponse> {
+                                override fun onResponse(call: Call<com.example.winly.api.LoginResponse>, response: Response<com.example.winly.api.LoginResponse>) {
                                     if (response.body()?.status == "success") {
                                         myLombaList = myLombaList.filter { it.id?.toIntOrNull() != selectedLombaId }
-                                        Toast.makeText(context, "Lomba berhasil dihapus!", Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                                override fun onFailure(call: Call<LoginResponse>, t: Throwable) {}
+                                override fun onFailure(call: Call<com.example.winly.api.LoginResponse>, t: Throwable) {}
                             })
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
@@ -394,17 +338,14 @@ fun PenyelenggaraCompetitionCard(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+// ====================================================================
+// DASHBOARD PESERTA
+// ====================================================================
 @Composable
 fun PesertaDashboard(
     onOpenFilter: () -> Unit,
     onNavigateToDetail: (Int) -> Unit = {},
-    searchQuery: String = "",
-    onSearchQueryChange: (String) -> Unit = {},
-    activeKategori: String = "",
-    activePendidikan: String = "",
-    activeTingkat: String = "",
-    activeFilterCount: Int = 0
+    onNavigateToPortfolio: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
@@ -413,14 +354,8 @@ fun PesertaDashboard(
     var listLomba by remember { mutableStateOf<List<CompetitionModel>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(searchQuery, activeKategori, activePendidikan, activeTingkat) {
-        isLoading = true
-        RetrofitClient.instance.getCompetitions(
-            search            = if (searchQuery.isNotEmpty()) searchQuery else null,
-            kategori          = if (activeKategori.isNotEmpty()) activeKategori else null,
-            tingkatPendidikan = if (activePendidikan.isNotEmpty()) activePendidikan else null,
-            tingkatLomba      = if (activeTingkat.isNotEmpty()) activeTingkat else null
-        ).enqueue(object : Callback<CompetitionResponse> {
+    LaunchedEffect(Unit) {
+        RetrofitClient.instance.getCompetitions().enqueue(object : Callback<CompetitionResponse> {
             override fun onResponse(call: Call<CompetitionResponse>, response: Response<CompetitionResponse>) {
                 isLoading = false
                 listLomba = response.body()?.data ?: emptyList()
@@ -430,6 +365,7 @@ fun PesertaDashboard(
     }
 
     LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        // Header
         item {
             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -445,42 +381,33 @@ fun PesertaDashboard(
                 IconButton(onClick = {}) { Icon(Icons.Outlined.Notifications, null, tint = Color(0xFF0061D1)) }
             }
         }
+
+        // Search bar
         item {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 TextField(
-                    value = searchQuery, onValueChange = onSearchQueryChange,
+                    value = "", onValueChange = {},
                     placeholder = { Text("Cari lomba...", color = Color.Gray) },
                     leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
-                    trailingIcon = { if (searchQuery.isNotEmpty()) IconButton(onClick = { onSearchQueryChange("") }) { Icon(Icons.Default.Clear, null) } },
                     modifier = Modifier.weight(1f).height(56.dp).clip(RoundedCornerShape(16.dp)),
-                    colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFFF2F2F2), unfocusedContainerColor = Color(0xFFF2F2F2), focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
-                    singleLine = true
+                    colors = TextFieldDefaults.colors(focusedContainerColor = Color(0xFFF2F2F2), unfocusedContainerColor = Color(0xFFF2F2F2), focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-                Box(contentAlignment = Alignment.TopEnd) {
-                    Box(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(if (activeFilterCount > 0) Color(0xFF0061D1) else Color(0xFFC2D9FF)).clickable { onOpenFilter() }, contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Tune, null, tint = if (activeFilterCount > 0) Color.White else Color(0xFF0061D1))
-                    }
-                    if (activeFilterCount > 0) {
-                        Box(modifier = Modifier.size(18.dp).clip(CircleShape).background(Color(0xFFDC2626)), contentAlignment = Alignment.Center) {
-                            Text("$activeFilterCount", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                Box(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFC2D9FF)).clickable { onOpenFilter() }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Tune, null, tint = Color(0xFF0061D1))
                 }
             }
         }
-        if (activeFilterCount > 0) {
-            item {
-                Spacer(modifier = Modifier.height(10.dp))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (activeKategori.isNotEmpty()) ActiveFilterChip(label = activeKategori, onRemove = {})
-                    if (activePendidikan.isNotEmpty()) ActiveFilterChip(label = activePendidikan, onRemove = {})
-                    if (activeTingkat.isNotEmpty()) ActiveFilterChip(label = activeTingkat, onRemove = {})
-                }
-            }
-        }
+
+        // ✅ DEADLINE WIDGET - muncul di sini setelah search bar
         item {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            DeadlineWidget(onNavigateToPortfolio = onNavigateToPortfolio)
+        }
+
+        // Banner
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
             Box(modifier = Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(32.dp)).background(Brush.linearGradient(listOf(Color(0xFF0061D1), Color(0xFF2196F3)))).padding(24.dp)) {
                 Column {
                     Text("SELAMAT DATANG", color = Color.White.copy(0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -499,26 +426,100 @@ fun PesertaDashboard(
                 }
             }
         }
+
+        // Daftar lomba
         item {
             Spacer(modifier = Modifier.height(24.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(when { searchQuery.isNotEmpty() -> "Hasil Pencarian"; activeFilterCount > 0 -> "Hasil Filter"; else -> "Lomba Terbaru" }, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                if (searchQuery.isNotEmpty() || activeFilterCount > 0) Text("${listLomba.size} hasil", color = Color(0xFF0061D1), fontSize = 12.sp)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                Text("Lomba Terbaru", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("Lihat Semua", color = Color(0xFF0061D1), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(16.dp))
             if (isLoading) {
                 Box(Modifier.fillMaxWidth().height(140.dp), Alignment.Center) { CircularProgressIndicator(color = Color(0xFF0061D1)) }
             } else if (listLomba.isEmpty()) {
-                Box(Modifier.fillMaxWidth().height(140.dp), Alignment.Center) { Text("Tidak ada lomba yang ditemukan.", color = Color.Gray) }
+                Box(Modifier.fillMaxWidth().height(140.dp), Alignment.Center) { Text("Belum ada perlombaan.", color = Color.Gray) }
             } else {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(listLomba) { lomba ->
-                        RecommendationCard(lomba = lomba, onClick = { onNavigateToDetail(lomba.id?.toIntOrNull() ?: 0) })
-                    }
+                    items(listLomba) { lomba -> RecommendationCard(lomba = lomba, onClick = { onNavigateToDetail(lomba.id?.toIntOrNull() ?: 0) }) }
                 }
             }
         }
         item { Spacer(modifier = Modifier.height(100.dp)) }
+    }
+}
+
+// ====================================================================
+// DEADLINE WIDGET ✅ BARU
+// ====================================================================
+@Composable
+fun DeadlineWidget(onNavigateToPortfolio: () -> Unit = {}) {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    val userId = sessionManager.getUserId()
+
+    var deadlineLomba by remember { mutableStateOf<List<CompetitionModel>>(emptyList()) }
+
+    LaunchedEffect(userId) {
+        if (userId > 0) {
+            RetrofitClient.instance.getBookmarks(userId)
+                .enqueue(object : Callback<BookmarkResponse> {
+                    override fun onResponse(call: Call<BookmarkResponse>, response: Response<BookmarkResponse>) {
+                        val allBookmarks = response.body()?.data ?: emptyList()
+                        deadlineLomba = allBookmarks.filter { lomba ->
+                            val tanggal = lomba.tanggalTutupDaftar ?: lomba.tanggalPelaksanaan
+                            if (tanggal.isNullOrEmpty()) return@filter false
+                            try {
+                                val format = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                val deadline = format.parse(tanggal)
+                                val diff = deadline?.time?.minus(java.util.Calendar.getInstance().timeInMillis) ?: -1L
+                                val days = diff / (24 * 60 * 60 * 1000)
+                                days in 0..7
+                            } catch (e: Exception) { false }
+                        }
+                    }
+                    override fun onFailure(call: Call<BookmarkResponse>, t: Throwable) {}
+                })
+        }
+    }
+
+    if (deadlineLomba.isEmpty()) return
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { onNavigateToPortfolio() },
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFFFFF7ED),
+        border = BorderStroke(1.dp, Color(0xFFFED7AA))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Warning, null, tint = Color(0xFFF97316), modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Deadline Mendekat!", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color(0xFFEA580C))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Lihat Semua", fontSize = 11.sp, color = Color(0xFFF97316), fontWeight = FontWeight.Bold)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color(0xFFF97316), modifier = Modifier.size(14.dp))
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            deadlineLomba.take(2).forEach { lomba ->
+                val tanggal = lomba.tanggalTutupDaftar ?: lomba.tanggalPelaksanaan
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFFF97316)))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(lomba.judulLomba ?: "", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        Text(hitungSisaHari(tanggal), fontSize = 10.sp, color = Color(0xFFF97316), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            if (deadlineLomba.size > 2) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("+${deadlineLomba.size - 2} lomba lainnya", fontSize = 10.sp, color = Color.Gray, modifier = Modifier.padding(start = 18.dp))
+            }
+        }
     }
 }
 
@@ -545,6 +546,9 @@ fun RecommendationCard(lomba: CompetitionModel, onClick: () -> Unit = {}) {
     }
 }
 
+// ====================================================================
+// EXPLORE SCREEN
+// ====================================================================
 @Composable
 fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
     val kategoriList = listOf(
@@ -592,7 +596,10 @@ fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
                         row.forEach { (nama, icon, color) ->
                             val isSelected = selectedKategori == nama
                             Card(
-                                modifier = Modifier.weight(1f).height(90.dp).clickable { selectedKategori = if (isSelected) null else nama; if (isSelected) listLomba = emptyList() },
+                                modifier = Modifier.weight(1f).height(90.dp).clickable {
+                                    selectedKategori = if (isSelected) null else nama
+                                    if (isSelected) listLomba = emptyList()
+                                },
                                 shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(containerColor = if (isSelected) color else color.copy(alpha = 0.1f)),
                                 elevation = CardDefaults.cardElevation(if (isSelected) 4.dp else 0.dp)
@@ -606,11 +613,6 @@ fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
                         }
                         if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
                     }
-                }
-                // Widget Deadline Mendekat
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    DeadlineWidget(onNavigateToPortfolio = onNavigateToPortfolio)
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -700,92 +702,5 @@ fun CustomNavItem(icon: ImageVector, label: String, isSelected: Boolean, onClick
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(label, fontSize = 11.sp, color = color, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium)
-    }
-}
-
-@Composable
-fun DeadlineWidget(onNavigateToPortfolio: () -> Unit = {}) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val sessionManager = remember { com.example.winly.data.SessionManager(context) }
-    val userId = sessionManager.getUserId()
-
-    var deadlineLomba by remember { mutableStateOf<List<com.example.winly.api.CompetitionModel>>(emptyList()) }
-
-    LaunchedEffect(userId) {
-        if (userId > 0) {
-            RetrofitClient.instance.getBookmarks(userId)
-                .enqueue(object : Callback<com.example.winly.api.BookmarkResponse> {
-                    override fun onResponse(
-                        call: Call<com.example.winly.api.BookmarkResponse>,
-                        response: Response<com.example.winly.api.BookmarkResponse>
-                    ) {
-                        val allBookmarks = response.body()?.data ?: emptyList()
-                        // Filter yang deadlinenya <= 7 hari
-                        deadlineLomba = allBookmarks.filter { lomba ->
-                            val tanggal = lomba.tanggalTutupDaftar ?: lomba.tanggalPelaksanaan
-                            if (tanggal.isNullOrEmpty()) return@filter false
-                            try {
-                                val format = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                                val deadline = format.parse(tanggal)
-                                val diff = deadline?.time?.minus(java.util.Calendar.getInstance().timeInMillis) ?: -1L
-                                val days = diff / (24 * 60 * 60 * 1000)
-                                days in 0..7
-                            } catch (e: Exception) { false }
-                        }
-                    }
-                    override fun onFailure(call: Call<com.example.winly.api.BookmarkResponse>, t: Throwable) {}
-                })
-        }
-    }
-
-    if (deadlineLomba.isEmpty()) return
-
-    Surface(
-        modifier = Modifier.fillMaxWidth().clickable { onNavigateToPortfolio() },
-        shape = RoundedCornerShape(20.dp),
-        color = Color(0xFFFFF7ED),
-        border = BorderStroke(1.dp, Color(0xFFFED7AA))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Warning, null, tint = Color(0xFFF97316), modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Deadline Mendekat!", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color(0xFFEA580C))
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Lihat Semua", fontSize = 11.sp, color = Color(0xFFF97316), fontWeight = FontWeight.Bold)
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color(0xFFF97316), modifier = Modifier.size(14.dp))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            deadlineLomba.take(2).forEach { lomba ->
-                val tanggal = lomba.tanggalTutupDaftar ?: lomba.tanggalPelaksanaan
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFFF97316))
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(lomba.judulLomba ?: "", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                        Text(hitungSisaHari(tanggal), fontSize = 10.sp, color = Color(0xFFF97316), fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            if (deadlineLomba.size > 2) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("+${deadlineLomba.size - 2} lomba lainnya", fontSize = 10.sp, color = Color.Gray, modifier = Modifier.padding(start = 18.dp))
-            }
-        }
     }
 }
