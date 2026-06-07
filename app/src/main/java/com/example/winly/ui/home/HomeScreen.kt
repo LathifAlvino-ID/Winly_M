@@ -93,13 +93,8 @@ fun HomeScreen(
                     )
                 } else {
                     PesertaDashboard(
-                        onOpenFilter = {
-                            tempKategori = selectedKategori
-                            tempPendidikan = selectedPendidikan
-                            tempTingkat = selectedTingkat
-                            isFilterOpen = true
-                        },
-                        onNavigateToDetail = onNavigateToDetail,
+                        onOpenFilter = {isFilterOpen = true },
+                        onNavigateToDetail = { selectedTab = 2 },
                         searchQuery = searchQuery,
                         onSearchQueryChange = { searchQuery = it },
                         activeKategori = selectedKategori,
@@ -612,6 +607,11 @@ fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
                         if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
                     }
                 }
+                // Widget Deadline Mendekat
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    DeadlineWidget(onNavigateToPortfolio = onNavigateToPortfolio)
+                }
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -700,5 +700,92 @@ fun CustomNavItem(icon: ImageVector, label: String, isSelected: Boolean, onClick
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(label, fontSize = 11.sp, color = color, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium)
+    }
+}
+
+@Composable
+fun DeadlineWidget(onNavigateToPortfolio: () -> Unit = {}) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val sessionManager = remember { com.example.winly.data.SessionManager(context) }
+    val userId = sessionManager.getUserId()
+
+    var deadlineLomba by remember { mutableStateOf<List<com.example.winly.api.CompetitionModel>>(emptyList()) }
+
+    LaunchedEffect(userId) {
+        if (userId > 0) {
+            RetrofitClient.instance.getBookmarks(userId)
+                .enqueue(object : Callback<com.example.winly.api.BookmarkResponse> {
+                    override fun onResponse(
+                        call: Call<com.example.winly.api.BookmarkResponse>,
+                        response: Response<com.example.winly.api.BookmarkResponse>
+                    ) {
+                        val allBookmarks = response.body()?.data ?: emptyList()
+                        // Filter yang deadlinenya <= 7 hari
+                        deadlineLomba = allBookmarks.filter { lomba ->
+                            val tanggal = lomba.tanggalTutupDaftar ?: lomba.tanggalPelaksanaan
+                            if (tanggal.isNullOrEmpty()) return@filter false
+                            try {
+                                val format = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                                val deadline = format.parse(tanggal)
+                                val diff = deadline?.time?.minus(java.util.Calendar.getInstance().timeInMillis) ?: -1L
+                                val days = diff / (24 * 60 * 60 * 1000)
+                                days in 0..7
+                            } catch (e: Exception) { false }
+                        }
+                    }
+                    override fun onFailure(call: Call<com.example.winly.api.BookmarkResponse>, t: Throwable) {}
+                })
+        }
+    }
+
+    if (deadlineLomba.isEmpty()) return
+
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { onNavigateToPortfolio() },
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFFFFF7ED),
+        border = BorderStroke(1.dp, Color(0xFFFED7AA))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Warning, null, tint = Color(0xFFF97316), modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Deadline Mendekat!", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = Color(0xFFEA580C))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Lihat Semua", fontSize = 11.sp, color = Color(0xFFF97316), fontWeight = FontWeight.Bold)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Color(0xFFF97316), modifier = Modifier.size(14.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            deadlineLomba.take(2).forEach { lomba ->
+                val tanggal = lomba.tanggalTutupDaftar ?: lomba.tanggalPelaksanaan
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFFF97316))
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(lomba.judulLomba ?: "", fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        Text(hitungSisaHari(tanggal), fontSize = 10.sp, color = Color(0xFFF97316), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            if (deadlineLomba.size > 2) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("+${deadlineLomba.size - 2} lomba lainnya", fontSize = 10.sp, color = Color.Gray, modifier = Modifier.padding(start = 18.dp))
+            }
+        }
     }
 }
