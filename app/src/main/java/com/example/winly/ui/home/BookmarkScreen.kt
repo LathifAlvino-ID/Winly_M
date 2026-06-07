@@ -3,7 +3,6 @@ package com.example.winly.ui.home
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -196,21 +195,21 @@ fun BookmarkScreen(userId: Int? = null) {
                                     .padding(end = 8.dp)
                             ) {
                                 Text(
-                                    bookmark.judul_lomba,
+                                    bookmark.judulLomba ?: "N/A",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
                                     color = Color(0xFF0061D1)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    bookmark.nama_penyelenggara,
+                                    bookmark.namaPenyelenggara ?: "N/A",
                                     fontSize = 11.sp,
                                     color = Color.Gray
                                 )
                             }
 
                             IconButton(
-                                onClick = { hapusBookmark(bookmark.id) },
+                                onClick = { hapusBookmark(bookmark.id ?: 0) },
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(
@@ -233,7 +232,7 @@ fun BookmarkScreen(userId: Int? = null) {
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
-                                    bookmark.kategori,
+                                    bookmark.kategori ?: "N/A",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFF0061D1),
@@ -246,7 +245,7 @@ fun BookmarkScreen(userId: Int? = null) {
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
-                                    bookmark.tingkat_lomba,
+                                    bookmark.tingkatLomba ?: "N/A",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFFFF9800),
@@ -265,7 +264,7 @@ fun BookmarkScreen(userId: Int? = null) {
                             Column {
                                 Text("Tutup Daftar", fontSize = 10.sp, color = Color.Gray)
                                 Text(
-                                    bookmark.tanggal_tutup_daftar,
+                                    bookmark.tanggalTutupDaftar ?: "N/A",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color.DarkGray
@@ -273,10 +272,10 @@ fun BookmarkScreen(userId: Int? = null) {
                             }
 
                             Text(
-                                if (bookmark.biaya_pendaftaran == 0) "Gratis" else "Rp ${String.format("%,d", bookmark.biaya_pendaftaran).replace(",", ".")}",
+                                if (bookmark.biayaPendaftaran == 0) "Gratis" else "Rp ${String.format("%,d", bookmark.biayaPendaftaran ?: 0).replace(",", ".")}",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
-                                color = if (bookmark.biaya_pendaftaran == 0) Color(0xFF4CAF50) else Color(0xFF0061D1)
+                                color = if (bookmark.biayaPendaftaran == 0) Color(0xFF4CAF50) else Color(0xFF0061D1)
                             )
                         }
                     }

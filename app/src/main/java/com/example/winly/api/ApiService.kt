@@ -5,96 +5,73 @@ import retrofit2.http.*
 
 interface ApiService {
 
-    // ===== AUTH =====
+    // 1. LOGIN
     @FormUrlEncoded
     @POST("login.php")
-    fun login(
+    fun loginUser(
         @Field("email") email: String,
         @Field("password") password: String
     ): Call<LoginResponse>
 
+    // 2. REGISTER
     @FormUrlEncoded
     @POST("register.php")
-    fun register(
+    fun registerUser(
         @Field("name") name: String,
         @Field("email") email: String,
         @Field("password") password: String,
-        @Field("role") role: String,
-        @Field("instansi") instansi: String
+        @Field("role") role: String
     ): Call<LoginResponse>
 
+    // 3. VERIFY OTP
     @FormUrlEncoded
     @POST("verify.php")
-    fun verifyOtp(
+    fun verifyUser(
         @Field("email") email: String,
         @Field("code") code: String
     ): Call<LoginResponse>
 
-    @FormUrlEncoded
-    @POST("forgot_password.php")
-    fun sendOtp(
-        @Field("action") action: String,
-        @Field("email") email: String
-    ): Call<LoginResponse>
-
-    @FormUrlEncoded
-    @POST("forgot_password.php")
-    fun resetPassword(
-        @Field("action") action: String,
-        @Field("email") email: String,
-        @Field("otp") otp: String,
-        @Field("new_password") newPassword: String
-    ): Call<LoginResponse>
-
-    // ===== COMPETITIONS =====
+    // 4. GET COMPETITIONS
     @GET("get_competitions.php")
-    fun getCompetitions(
-        @Query("search") search: String? = null,
-        @Query("kategori") kategori: String? = null,
-        @Query("tingkat_pendidikan") tingkatPendidikan: String? = null,
-        @Query("tingkat_lomba") tingkatLomba: String? = null
-    ): Call<CompetitionResponse>
+    fun getCompetitions(): Call<CompetitionResponse>
 
-    @GET("get_competition_detail.php")
-    fun getCompetitionDetail(
-        @Query("id") id: Int
-    ): Call<CompetitionDetailResponse>
-
+    // 5. CREATE COMPETITION
     @FormUrlEncoded
     @POST("create_competition.php")
     fun createCompetition(
-        @Field("penyelenggara_id") penyelenggara_id: Int,
-        @Field("judul_lomba") judul_lomba: String,
+        @Field("penyelenggara_id") penyelenggaraId: Int,
+        @Field("judul_lomba") judul: String,
         @Field("kategori") kategori: String,
-        @Field("tingkat_pendidikan") tingkat_pendidikan: String,
-        @Field("tingkat_lomba") tingkat_lomba: String,
+        @Field("tingkat_pendidikan") tingkatPendidikan: String,
+        @Field("tingkat_lomba") tingkatLomba: String,
         @Field("deskripsi") deskripsi: String,
-        @Field("link_pendaftaran") link_pendaftaran: String,
-        @Field("link_panduan") link_panduan: String,
-        @Field("poster_url") poster_url: String,
-        @Field("biaya_pendaftaran") biaya_pendaftaran: Int,
-        @Field("tanggal_tutup_daftar") tanggal_tutup_daftar: String,
-        @Field("tanggal_pelaksanaan") tanggal_pelaksanaan: String
+        @Field("link_pendaftaran") linkPendaftaran: String,
+        @Field("link_panduan") linkPanduan: String,
+        @Field("poster_url") posterUrl: String,
+        @Field("biaya_pendaftaran") biaya: Int,
+        @Field("tanggal_tutup_daftar") tanggalTutupDaftar: String,
+        @Field("tanggal_pelaksanaan") tanggalPelaksanaan: String
     ): Call<LoginResponse>
 
+    // 6. GET USER INFO
+    @GET("get_user_info.php")
+    fun getUserInfo(
+        @Query("user_id") userId: Int
+    ): Call<UserResponse>
+
+    // 7. GET MY COMPETITIONS
     @GET("get_my_competitions.php")
     fun getMyCompetitions(
-        @Query("penyelenggara_id") penyelenggaraId: Int
+        @Query("penyelenggara_id") id: Int
     ): Call<CompetitionResponse>
 
-    @FormUrlEncoded
-    @POST("delete_competition.php")
-    fun deleteCompetition(
-        @Field("competition_id") competitionId: Int,
-        @Field("penyelenggara_id") penyelenggaraId: Int
-    ): Call<LoginResponse>
-
-    // ===== BOOKMARKS =====
+    // 8. GET BOOKMARKS
     @GET("bookmark.php")
     fun getBookmarks(
         @Query("user_id") userId: Int
     ): Call<BookmarkResponse>
 
+    // 9. TOGGLE BOOKMARK
     @FormUrlEncoded
     @POST("bookmark.php")
     fun toggleBookmark(
@@ -102,29 +79,9 @@ interface ApiService {
         @Field("competition_id") competitionId: Int
     ): Call<LoginResponse>
 
-    // ===== REGISTRATIONS =====
-    @GET("get_registrations.php")
-    fun getRegistrations(
-        @Query("competition_id") competitionId: Int
-    ): Call<RegistrationResponse>
-
-    @FormUrlEncoded
-    @POST("update_registration.php")
-    fun updateRegistration(
-        @Field("registration_id") registrationId: Int,
-        @Field("status") status: String,
-        @Field("catatan") catatan: String
-    ): Call<LoginResponse>
-
-    // ===== CERTIFICATES (BARU) =====
+    // 10. GET CERTIFICATES
     @GET("get_certificates.php")
     fun getCertificates(
         @Query("user_id") userId: Int
     ): Call<CertificateResponse>
-
-    // ===== USER =====
-    @GET("get_user_info.php")
-    fun getUserInfo(
-        @Query("user_id") userId: Int
-    ): Call<UserInfoResponse>
 }

@@ -173,21 +173,21 @@ fun PortfolioScreen(userId: Int? = null) {
                                     .padding(end = 8.dp)
                             ) {
                                 Text(
-                                    cert.judul_lomba,
+                                    cert.judulLomba ?: "N/A",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
                                     color = Color(0xFF0061D1)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    "${cert.tingkat_lomba} • ${cert.kategori}",
+                                    "${cert.tingkatLomba ?: "N/A"} • ${cert.kategori ?: "N/A"}",
                                     fontSize = 11.sp,
                                     color = Color.Gray
                                 )
                             }
 
                             Surface(
-                                color = when (cert.predikat.lowercase()) {
+                                color = when (cert.predikat?.lowercase()) {
                                     "juara 1" -> Color(0xFFFFD700)
                                     "juara 2" -> Color(0xFFC0C0C0)
                                     "juara 3" -> Color(0xFFCD7F32)
@@ -196,7 +196,7 @@ fun PortfolioScreen(userId: Int? = null) {
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
-                                    cert.predikat,
+                                    cert.predikat ?: "N/A",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 10.sp,
                                     color = Color.Black,
@@ -216,7 +216,7 @@ fun PortfolioScreen(userId: Int? = null) {
                             ) {
                                 Text("Penyelenggara", fontSize = 10.sp, color = Color.Gray)
                                 Text(
-                                    cert.nama_penyelenggara,
+                                    cert.namaPenyelenggara ?: "N/A",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color.DarkGray
@@ -225,7 +225,7 @@ fun PortfolioScreen(userId: Int? = null) {
                             Column {
                                 Text("Tahun", fontSize = 10.sp, color = Color.Gray)
                                 Text(
-                                    cert.tahun,
+                                    cert.tahun ?: "N/A",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color.DarkGray
@@ -247,7 +247,7 @@ fun PortfolioScreen(userId: Int? = null) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "Atas Nama: ${cert.nama_pemenang}",
+                                "Atas Nama: ${cert.namaPemenang ?: "N/A"}",
                                 fontSize = 11.sp,
                                 color = Color.Gray,
                                 modifier = Modifier.weight(1f)
