@@ -21,19 +21,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.winly.api.BookmarkedCompetition
+import com.example.winly.api.BookmarkResponse
+import com.example.winly.api.LoginResponse
 import com.example.winly.api.RetrofitClient
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
-// ====================================================================
-// MAIN BOOKMARK SCREEN
-// ====================================================================
 @Composable
 fun BookmarkScreen(userId: Int? = null) {
     val context = LocalContext.current
 
-    // Ambil user ID dari SharedPref jika tidak diberikan
     val actualUserId = userId ?: run {
         val sharedPref = context.getSharedPreferences("user_session", Context.MODE_PRIVATE)
         sharedPref.getInt("user_id", 0)
@@ -44,7 +43,6 @@ fun BookmarkScreen(userId: Int? = null) {
     var errorMessage by remember { mutableStateOf("") }
     var refreshKey by remember { mutableStateOf(0) }
 
-    // ===== LOAD DATA BOOKMARKS =====
     LaunchedEffect(refreshKey) {
         if (actualUserId <= 0) {
             errorMessage = "User ID tidak valid"
@@ -76,14 +74,13 @@ fun BookmarkScreen(userId: Int? = null) {
             })
     }
 
-    // ===== FUNGSI HAPUS BOOKMARK =====
     fun hapusBookmark(competitionId: Int) {
         RetrofitClient.instance.toggleBookmark(actualUserId, competitionId)
             .enqueue(object : Callback<LoginResponse> {
                 override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                     if (response.isSuccessful) {
                         Toast.makeText(context, "✓ Bookmark dihapus", Toast.LENGTH_SHORT).show()
-                        refreshKey++ // Refresh list
+                        refreshKey++
                     }
                 }
 
@@ -93,14 +90,12 @@ fun BookmarkScreen(userId: Int? = null) {
             })
     }
 
-    // ===== UI =====
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
             .padding(16.dp)
     ) {
-        // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -122,7 +117,6 @@ fun BookmarkScreen(userId: Int? = null) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ===== LOADING STATE =====
         if (isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -133,33 +127,16 @@ fun BookmarkScreen(userId: Int? = null) {
             return@Column
         }
 
-        // ===== ERROR STATE =====
         if (errorMessage.isNotEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        Icons.Default.BookmarkRemove,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        errorMessage,
-                        color = Color.Gray,
-                        fontSize = 14.sp
-                    )
-                }
+                Text(errorMessage, color = Color.Gray, fontSize = 14.sp)
             }
             return@Column
         }
 
-        // ===== EMPTY STATE =====
         if (bookmarks.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -184,7 +161,7 @@ fun BookmarkScreen(userId: Int? = null) {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Simpan lomba favorit untuk akses cepat di masa depan 📌",
+                        "Simpan lomba favorit untuk akses cepat 📌",
                         textAlign = TextAlign.Center,
                         color = Color.Gray,
                         fontSize = 13.sp
@@ -194,138 +171,119 @@ fun BookmarkScreen(userId: Int? = null) {
             return@Column
         }
 
-        // ===== LIST BOOKMARKS =====
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
             items(bookmarks) { bookmark ->
-                BookmarkCard(
-                    bookmark = bookmark,
-                    onDelete = { hapusBookmark(bookmark.id) }
-                )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5F9)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            ) {
+                                Text(
+                                    bookmark.judul_lomba,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF0061D1)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    bookmark.nama_penyelenggara,
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { hapusBookmark(bookmark.id) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.BookmarkRemove,
+                                    contentDescription = "Hapus bookmark",
+                                    tint = Color(0xFFE91E63),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                color = Color(0xFFE5F0FF),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    bookmark.kategori,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0061D1),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+
+                            Surface(
+                                color = Color(0xFFFFF4E0),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    bookmark.tingkat_lomba,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFFF9800),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("Tutup Daftar", fontSize = 10.sp, color = Color.Gray)
+                                Text(
+                                    bookmark.tanggal_tutup_daftar,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.DarkGray
+                                )
+                            }
+
+                            Text(
+                                if (bookmark.biaya_pendaftaran == 0) "Gratis" else "Rp ${String.format("%,d", bookmark.biaya_pendaftaran).replace(",", ".")}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = if (bookmark.biaya_pendaftaran == 0) Color(0xFF4CAF50) else Color(0xFF0061D1)
+                            )
+                        }
+                    }
+                }
             }
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-            }
-        }
-    }
-}
-
-// ====================================================================
-// BOOKMARK CARD COMPONENT
-// ====================================================================
-@Composable
-fun BookmarkCard(
-    bookmark: BookmarkedCompetition,
-    onDelete: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5F9)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // ===== HEADER: JUDUL & DELETE BUTTON =====
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 8.dp)
-                ) {
-                    Text(
-                        bookmark.judul_lomba,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = Color(0xFF0061D1)
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        bookmark.nama_penyelenggara,
-                        fontSize = 11.sp,
-                        color = Color.Gray
-                    )
-                }
-
-                // Delete Button
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.BookmarkRemove,
-                        contentDescription = "Hapus bookmark",
-                        tint = Color(0xFFE91E63),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ===== INFO: KATEGORI & LEVEL =====
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Surface(
-                    color = Color(0xFFE5F0FF),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        bookmark.kategori,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF0061D1),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-
-                Surface(
-                    color = Color(0xFFFFF4E0),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text(
-                        bookmark.tingkat_lomba,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFFF9800),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ===== FOOTER: TANGGAL & BIAYA =====
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("Tutup Daftar", fontSize = 10.sp, color = Color.Gray)
-                    Text(
-                        bookmark.tanggal_tutup_daftar,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.DarkGray
-                    )
-                }
-
-                Text(
-                    if (bookmark.biaya_pendaftaran == 0) "Gratis" else "Rp ${String.format("%,d", bookmark.biaya_pendaftaran).replace(",", ".")}",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = if (bookmark.biaya_pendaftaran == 0) Color(0xFF4CAF50) else Color(0xFF0061D1)
-                )
             }
         }
     }
