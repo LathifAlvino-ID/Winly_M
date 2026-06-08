@@ -132,8 +132,9 @@ fun KelolaPendaftarScreen(
                             pendaftar = pendaftar,
                             onTerima = {
                                 RetrofitClient.instance.updateRegistration(
-                                    registrationId = pendaftar.id?.toIntOrNull() ?: 0,
-                                    status = "diterima"
+                                    registrationId = pendaftar.id ?: 0,
+                                    status = "diterima",
+                                    catatan = ""
                                 ).enqueue(object : Callback<LoginResponse> {
                                     override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                                         if (response.body()?.status == "success") {
@@ -146,8 +147,9 @@ fun KelolaPendaftarScreen(
                             },
                             onTolak = {
                                 RetrofitClient.instance.updateRegistration(
-                                    registrationId = pendaftar.id?.toIntOrNull() ?: 0,
-                                    status = "ditolak"
+                                    registrationId = pendaftar.id ?: 0,
+                                    status = "ditolak",
+                                    catatan = ""
                                 ).enqueue(object : Callback<LoginResponse> {
                                     override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                                         if (response.body()?.status == "success") {

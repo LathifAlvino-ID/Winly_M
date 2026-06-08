@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkRemove
@@ -36,7 +35,7 @@ fun BookmarkScreen(userId: Int? = null) {
         sharedPref.getInt("user_id", 0)
     }
 
-    var bookmarks by remember { mutableStateOf<List<Any>>(emptyList()) }
+    var bookmarksData by remember { mutableStateOf<List<Map<String, Any?>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
     var refreshKey by remember { mutableStateOf(0) }
@@ -59,7 +58,18 @@ fun BookmarkScreen(userId: Int? = null) {
                 ) {
                     isLoading = false
                     if (response.isSuccessful) {
-                        bookmarks = response.body()?.data ?: emptyList()
+                        val bookmarkList = response.body()?.data ?: emptyList()
+                        bookmarksData = bookmarkList.map { bookmark ->
+                            mapOf(
+                                "id" to (bookmark.id ?: 0),
+                                "judul_lomba" to (bookmark.judulLomba ?: "N/A"),
+                                "kategori" to (bookmark.kategori ?: "N/A"),
+                                "tingkat_lomba" to (bookmark.tingkatLomba ?: "N/A"),
+                                "biaya_pendaftaran" to (bookmark.biayaPendaftaran ?: 0),
+                                "tanggal_tutup_daftar" to (bookmark.tanggalTutupDaftar ?: "N/A"),
+                                "nama_penyelenggara" to (bookmark.namaPenyelenggara ?: "N/A")
+                            ) as Map<String, Any?>
+                        }
                     } else {
                         errorMessage = "Gagal memuat bookmark"
                     }
@@ -129,7 +139,7 @@ fun BookmarkScreen(userId: Int? = null) {
             return@Column
         }
 
-        if (bookmarks.isEmpty()) {
+        if (bookmarksData.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
                     Icon(Icons.Default.Favorite, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
@@ -143,8 +153,8 @@ fun BookmarkScreen(userId: Int? = null) {
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
-            items(bookmarks.size) { index ->
-                val bookmark = bookmarks[index] as? Map<*, *> ?: return@items
+            items(bookmarksData.size) { index ->
+                val bookmark = bookmarksData[index]
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -152,33 +162,85 @@ fun BookmarkScreen(userId: Int? = null) {
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
                             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                Text(bookmark["judul_lomba"]?.toString() ?: "N/A", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF0061D1))
+                                Text(
+                                    bookmark["judul_lomba"]?.toString() ?: "N/A",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF0061D1)
+                                )
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(bookmark["nama_penyelenggara"]?.toString() ?: "N/A", fontSize = 11.sp, color = Color.Gray)
+                                Text(
+                                    bookmark["nama_penyelenggara"]?.toString() ?: "N/A",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
                             }
-                            IconButton(onClick = { hapusBookmark((bookmark["id"] as? Number)?.toInt() ?: 0) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.BookmarkRemove, contentDescription = "Hapus", tint = Color(0xFFE91E63), modifier = Modifier.size(20.dp))
+                            IconButton(
+                                onClick = { hapusBookmark((bookmark["id"] as? Number)?.toInt() ?: 0) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.BookmarkRemove,
+                                    contentDescription = "Hapus",
+                                    tint = Color(0xFFE91E63),
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
+
                         Spacer(modifier = Modifier.height(12.dp))
+
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Surface(color = Color(0xFFE5F0FF), shape = RoundedCornerShape(6.dp)) {
-                                Text(bookmark["kategori"]?.toString() ?: "N/A", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0061D1), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                                Text(
+                                    bookmark["kategori"]?.toString() ?: "N/A",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0061D1),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
                             }
                             Surface(color = Color(0xFFFFF4E0), shape = RoundedCornerShape(6.dp)) {
-                                Text(bookmark["tingkat_lomba"]?.toString() ?: "N/A", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                                Text(
+                                    bookmark["tingkat_lomba"]?.toString() ?: "N/A",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFFF9800),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
                             }
                         }
+
                         Spacer(modifier = Modifier.height(12.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Column {
                                 Text("Tutup Daftar", fontSize = 10.sp, color = Color.Gray)
-                                Text(bookmark["tanggal_tutup_daftar"]?.toString() ?: "N/A", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.DarkGray)
+                                Text(
+                                    bookmark["tanggal_tutup_daftar"]?.toString() ?: "N/A",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.DarkGray
+                                )
                             }
+
                             val biaya = (bookmark["biaya_pendaftaran"] as? Number)?.toInt() ?: 0
-                            Text(if (biaya == 0) "Gratis" else "Rp ${String.format("%,d", biaya).replace(",", ".")}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = if (biaya == 0) Color(0xFF4CAF50) else Color(0xFF0061D1))
+                            Text(
+                                if (biaya == 0) "Gratis" else "Rp ${String.format("%,d", biaya).replace(",", ".")}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = if (biaya == 0) Color(0xFF4CAF50) else Color(0xFF0061D1)
+                            )
                         }
                     }
                 }

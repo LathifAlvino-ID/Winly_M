@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
@@ -34,7 +33,7 @@ fun PortfolioScreen(userId: Int? = null) {
         sharedPref.getInt("user_id", 0)
     }
 
-    var certificates by remember { mutableStateOf<List<Any>>(emptyList()) }
+    var certificatesData by remember { mutableStateOf<List<Map<String, Any?>>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf("") }
 
@@ -50,7 +49,20 @@ fun PortfolioScreen(userId: Int? = null) {
                 override fun onResponse(call: Call<CertificateResponse>, response: Response<CertificateResponse>) {
                     isLoading = false
                     if (response.isSuccessful) {
-                        certificates = response.body()?.data ?: emptyList()
+                        val certList = response.body()?.data ?: emptyList()
+                        certificatesData = certList.map { cert ->
+                            mapOf(
+                                "id" to (cert.id ?: 0),
+                                "judul_lomba" to (cert.judul_lomba ?: "N/A"),
+                                "kategori" to (cert.kategori ?: "N/A"),
+                                "tingkat_lomba" to (cert.tingkat_lomba ?: "N/A"),
+                                "predikat" to (cert.predikat ?: "N/A"),
+                                "nama_penyelenggara" to (cert.nama_penyelenggara ?: "N/A"),
+                                "nama_pemenang" to (cert.nama_pemenang ?: "N/A"),
+                                "tahun" to (cert.tahun ?: "N/A"),
+                                "file_sertifikat" to (cert.file_sertifikat ?: "")
+                            ) as Map<String, Any?>
+                        }
                     } else {
                         errorMessage = "Gagal memuat sertifikat"
                     }
@@ -63,11 +75,29 @@ fun PortfolioScreen(userId: Int? = null) {
             })
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Color.White).padding(16.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color(0xFF0061D1), modifier = Modifier.size(28.dp))
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.EmojiEvents,
+                contentDescription = null,
+                tint = Color(0xFF0061D1),
+                modifier = Modifier.size(28.dp)
+            )
             Spacer(modifier = Modifier.width(12.dp))
-            Text("Portofolio Saya", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = Color.DarkGray)
+            Text(
+                "Portofolio Saya",
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 20.sp,
+                color = Color.DarkGray
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -86,7 +116,7 @@ fun PortfolioScreen(userId: Int? = null) {
             return@Column
         }
 
-        if (certificates.isEmpty()) {
+        if (certificatesData.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
                     Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(64.dp))
@@ -100,45 +130,123 @@ fun PortfolioScreen(userId: Int? = null) {
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxSize()) {
-            items(certificates.size) { index ->
-                val cert = certificates[index] as? Map<*, *> ?: return@items
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F9FF)), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+            items(certificatesData.size) { index ->
+                val cert = certificatesData[index]
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F9FF)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
                             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                                Text(cert["judul_lomba"]?.toString() ?: "N/A", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF0061D1))
+                                Text(
+                                    cert["judul_lomba"]?.toString() ?: "N/A",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF0061D1)
+                                )
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("${cert["tingkat_lomba"] ?: "N/A"} • ${cert["kategori"] ?: "N/A"}", fontSize = 11.sp, color = Color.Gray)
+                                Text(
+                                    "${cert["tingkat_lomba"] ?: "N/A"} • ${cert["kategori"] ?: "N/A"}",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
                             }
-                            Surface(color = when (cert["predikat"]?.toString()?.lowercase()) {
-                                "juara 1" -> Color(0xFFFFD700)
-                                "juara 2" -> Color(0xFFC0C0C0)
-                                "juara 3" -> Color(0xFFCD7F32)
-                                else -> Color(0xFFE0E0E0)
-                            }, shape = RoundedCornerShape(6.dp)) {
-                                Text(cert["predikat"]?.toString() ?: "N/A", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = Color.Black, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+
+                            Surface(
+                                color = when (cert["predikat"]?.toString()?.lowercase()) {
+                                    "juara 1" -> Color(0xFFFFD700)
+                                    "juara 2" -> Color(0xFFC0C0C0)
+                                    "juara 3" -> Color(0xFFCD7F32)
+                                    else -> Color(0xFFE0E0E0)
+                                },
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    cert["predikat"]?.toString() ?: "N/A",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp,
+                                    color = Color.Black,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
                             }
                         }
+
                         Spacer(modifier = Modifier.height(12.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Penyelenggara", fontSize = 10.sp, color = Color.Gray)
-                                Text(cert["nama_penyelenggara"]?.toString() ?: "N/A", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.DarkGray)
+                                Text(
+                                    cert["nama_penyelenggara"]?.toString() ?: "N/A",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.DarkGray
+                                )
                             }
                             Column {
                                 Text("Tahun", fontSize = 10.sp, color = Color.Gray)
-                                Text(cert["tahun"]?.toString() ?: "N/A", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.DarkGray)
+                                Text(
+                                    cert["tahun"]?.toString() ?: "N/A",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.DarkGray
+                                )
                             }
                         }
+
                         Spacer(modifier = Modifier.height(12.dp))
+
                         Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+
                         Spacer(modifier = Modifier.height(12.dp))
-                        Row(modifier = Modifier.fillMaxWidth().height(40.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("Atas Nama: ${cert["nama_pemenang"] ?: "N/A"}", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.weight(1f))
-                            Button(onClick = { }, modifier = Modifier.height(36.dp).wrapContentWidth(), shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0061D1))) {
-                                Icon(Icons.Default.Download, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Atas Nama: ${cert["nama_pemenang"] ?: "N/A"}",
+                                fontSize = 11.sp,
+                                color = Color.Gray,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            Button(
+                                onClick = { },
+                                modifier = Modifier
+                                    .height(36.dp)
+                                    .wrapContentWidth(),
+                                shape = RoundedCornerShape(6.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF0061D1)
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.Download,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Download", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(
+                                    "Download",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
                             }
                         }
                     }

@@ -283,7 +283,7 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
                                         RetrofitClient.instance.resetPassword(
                                             email = email,
                                             otp = otp,
-                                            newPassword = newPassword
+                                            new_password = newPassword
                                         ).enqueue(object : Callback<LoginResponse> {
                                             override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                                                 isLoading = false

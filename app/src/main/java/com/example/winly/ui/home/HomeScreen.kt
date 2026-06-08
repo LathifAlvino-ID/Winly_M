@@ -232,7 +232,7 @@ fun PenyelenggaraDashboard(
                             .enqueue(object : Callback<com.example.winly.api.LoginResponse> {
                                 override fun onResponse(call: Call<com.example.winly.api.LoginResponse>, response: Response<com.example.winly.api.LoginResponse>) {
                                     if (response.body()?.status == "success") {
-                                        myLombaList = myLombaList.filter { it.id?.toIntOrNull() != selectedLombaId }
+                                        myLombaList = myLombaList.filter { it.id != selectedLombaId }
                                     }
                                 }
                                 override fun onFailure(call: Call<com.example.winly.api.LoginResponse>, t: Throwable) {}
@@ -290,13 +290,13 @@ fun PenyelenggaraDashboard(
             item { Text("Belum ada lomba. Tambahkan lomba baru!", color = Color.Gray, modifier = Modifier.fillMaxWidth().padding(top = 20.dp), textAlign = TextAlign.Center) }
         } else {
             items(myLombaList) { lomba ->
-                val biaya = lomba.biayaPendaftaran?.toIntOrNull() ?: 0
+                val biaya = lomba.biayaPendaftaran ?: 0
                 PenyelenggaraCompetitionCard(
                     title = lomba.judulLomba ?: "Tanpa Judul",
                     price = if (biaya == 0) "FREE" else "Rp $biaya",
                     tanggalLomba = lomba.tanggalPelaksanaan ?: "",
-                    onKelola = { onNavigateToKelola(lomba.id?.toIntOrNull() ?: 0, lomba.judulLomba ?: "") },
-                    onHapus = { selectedLombaId = lomba.id?.toIntOrNull(); showDeleteDialog = true }
+                    onKelola = { onNavigateToKelola(lomba.id ?: 0, lomba.judulLomba ?: "") },
+                    onHapus = { selectedLombaId = lomba.id; showDeleteDialog = true }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -441,7 +441,7 @@ fun PesertaDashboard(
                 Box(Modifier.fillMaxWidth().height(140.dp), Alignment.Center) { Text("Belum ada perlombaan.", color = Color.Gray) }
             } else {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(listLomba) { lomba -> RecommendationCard(lomba = lomba, onClick = { onNavigateToDetail(lomba.id?.toIntOrNull() ?: 0) }) }
+                    items(listLomba) { lomba -> RecommendationCard(lomba = lomba, onClick = { onNavigateToDetail(lomba.id ?: 0) }) }
                 }
             }
         }
@@ -539,7 +539,7 @@ fun RecommendationCard(lomba: CompetitionModel, onClick: () -> Unit = {}) {
                     Text(hitungSisaHari(lomba.tanggalPelaksanaan), color = Color(0xFF0061D1), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                val biaya = lomba.biayaPendaftaran?.toIntOrNull() ?: 0
+                val biaya = lomba.biayaPendaftaran ?: 0
                 Text(if (biaya == 0) "GRATIS" else "Rp $biaya", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = if (biaya == 0) Color(0xFF22C55E) else Color.Black)
             }
         }
@@ -639,10 +639,10 @@ fun ExploreScreen(onNavigateToDetail: (Int) -> Unit = {}) {
                 }
             } else {
                 items(listLomba) { lomba ->
-                    val biaya = lomba.biayaPendaftaran?.toIntOrNull() ?: 0
+                    val biaya = lomba.biayaPendaftaran ?: 0
                     val warna = kategoriList.find { it.first == lomba.kategori }?.third ?: Color(0xFF0061D1)
                     val ikon = kategoriList.find { it.first == lomba.kategori }?.second ?: Icons.Default.EmojiEvents
-                    Card(modifier = Modifier.fillMaxWidth().clickable { onNavigateToDetail(lomba.id?.toIntOrNull() ?: 0) }.padding(bottom = 12.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(2.dp)) {
+                    Card(modifier = Modifier.fillMaxWidth().clickable { onNavigateToDetail(lomba.id ?: 0) }.padding(bottom = 12.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White), elevation = CardDefaults.cardElevation(2.dp)) {
                         Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(warna.copy(0.1f)), contentAlignment = Alignment.Center) {
                                 Icon(ikon, null, tint = warna, modifier = Modifier.size(28.dp))
