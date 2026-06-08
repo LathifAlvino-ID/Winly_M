@@ -2,9 +2,6 @@ package com.example.winly.api
 
 import com.google.gson.annotations.SerializedName
 
-// ============================================================
-// COMPETITION RESPONSE - Update sesuai field database baru
-// ============================================================
 data class CompetitionResponse(
     @SerializedName("status")  val status: String? = null,
     @SerializedName("message") val message: String? = null,
@@ -33,7 +30,6 @@ data class CompetitionModel(
     @SerializedName("instansi_penyelenggara")   val instansiPenyelenggara: String? = ""
 )
 
-// Model khusus untuk detail lomba (lebih lengkap)
 data class CompetitionDetailModel(
     @SerializedName("id")                       val id: String? = "",
     @SerializedName("penyelenggara_id")         val penyelenggaraId: String? = "",
@@ -63,18 +59,14 @@ data class CompetitionDetailResponse(
     @SerializedName("data")    val data: CompetitionDetailModel? = null
 )
 
-// Model untuk bookmark
 data class BookmarkResponse(
     @SerializedName("status")        val status: String? = null,
     @SerializedName("message")       val message: String? = null,
     @SerializedName("is_bookmarked") val isBookmarked: Boolean? = null,
     @SerializedName("total")         val total: Int? = 0,
     @SerializedName("data")          val data: List<CompetitionModel>? = null
-
-
 )
 
-// Model Registrasi
 data class RegistrationModel(
     @SerializedName("id")                  val id: String? = "",
     @SerializedName("peserta_id")          val pesertaId: String? = "",
